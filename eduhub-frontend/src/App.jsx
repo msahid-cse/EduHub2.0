@@ -9,6 +9,8 @@ import ViewNotices from "./pages/ViewNotices";
 import ViewCourses from "./pages/ViewCourses";
 import ViewJobs from "./pages/ViewJobs";
 import ProtectedRoute from "./components/ProtectedRoute";
+import UserDashboard from "./pages/UserDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function App() {
   return (
@@ -47,6 +49,16 @@ function App() {
         <Route path="/view-courses" element={
           <ProtectedRoute>
             <ViewCourses />
+          </ProtectedRoute>
+        } />
+        <Route path="/userdashboard" element={
+          <ProtectedRoute>
+            <UserDashboard />
+          </ProtectedRoute>
+        } />
+          <Route path="/admindashboard" element={
+          <ProtectedRoute>
+            <AdminDashboard />
           </ProtectedRoute>
         } />
         <Route path="/view-jobs" element={
