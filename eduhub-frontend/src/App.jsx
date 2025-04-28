@@ -76,14 +76,18 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
+import Userdashboard from "./pages/UserDashboard";
+import Admindashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Navbar from "./components/Navbar"; // Your Top Navbar
+import Navbar from "./components/Navbar";
+import Topbar from "./components/Topbar";  // Your Top Navbar
 
 function App() {
   return (
     <BrowserRouter>
       <Navbar />
+ 
 
       <Routes>
         {/* Public Landing Page */}
@@ -95,6 +99,8 @@ function App() {
 
         {/* Dashboard -- TEMPORARILY NOT Protected */}
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/userdashboard" element={<Userdashboard />} />
+        <Route path="/admindashboard" element={<Admindashboard />} />
       </Routes>
     </BrowserRouter>
   );
