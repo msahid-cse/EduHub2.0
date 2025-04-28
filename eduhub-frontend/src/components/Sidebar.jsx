@@ -56,7 +56,9 @@ function Sidebar({ setPage }) {
       <nav className="flex flex-col gap-4">
         <button onClick={() => setPage("home")} className="text-left hover:text-yellow-300">🏠 Home</button>
         <button onClick={() => setPage("skill")} className="text-left hover:text-yellow-300">🎯 Skill Development</button>
-        <button onClick={() => setPage("library")} className="text-left hover:text-yellow-300">📚 Resource Library</button>
+        {/* <button onClick={() => setPage("library")} className="text-left hover:text-yellow-300">📚 Resource Library</button> */}
+        <button onClick={() => setPage("library")}>📚 Resource Library</button>
+
         <button onClick={() => setPage("cvbuilder")} className="text-left hover:text-yellow-300">📄 CV Builder</button>
         <button onClick={() => setPage("growth")} className="text-left hover:text-yellow-300">📈 Growth Analysis</button>
       </nav>

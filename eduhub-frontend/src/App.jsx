@@ -78,6 +78,18 @@ import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Userdashboard from "./pages/UserDashboard";
 import Admindashboard from "./pages/AdminDashboard";
+import ResourceLibrary from "./pages/ResourceLibrary";
+import PostNotice from "./pages/PostNotice";
+import UploadCourse from "./pages/UploadCourse";
+import PostJob from "./pages/PostJob";
+import ViewNotices from "./pages/ViewNotices";
+import ViewCourses from "./pages/ViewCourses";
+import ViewJobs from "./pages/ViewJobs";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Sidebar from "./components/Sidebar"; // Your Sidebar
+import SkillDevelopment from "./pages/SkillDevelopment"; // Your Skill Development page
+import CVBuilder from "./pages/CVBuilder"; // Your CV Builder page
+import GrowthAnalysis from "./pages/GrowthAnalysis"; // Your Growth Analysis page
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Navbar from "./components/Navbar";
@@ -101,6 +113,21 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/userdashboard" element={<Userdashboard />} />
         <Route path="/admindashboard" element={<Admindashboard />} />
+        <Route path="/resource-library" element={<ResourceLibrary />} />
+        <Route path="/skill-development" element={<SkillDevelopment />} />
+        <Route path="/cv-builder" element={<CVBuilder />} />
+        <Route path="/growth-analysis" element={<GrowthAnalysis />} />
+        <Route path="/post-notice" element={<PostNotice />} />
+        <Route path="/upload-course" element={<UploadCourse />} />
+        <Route path="/post-job" element={<PostJob />} />
+        <Route path="/view-notices" element={<ViewNotices />} />
+        <Route path="/view-courses" element={<ViewCourses />} />
+        <Route path="/view-jobs" element={<ViewJobs />} />
+
+        {/* Protected Routes */}
+        {/* <Route path="/dashboard" element={<ProtectedRoute component={Dashboard} />} /> */}
+        {/* <Route path="/userdashboard" element={<ProtectedRoute component={Userdashboard} />} /> */}
+        {/* <Route path="/admindashboard" element={<ProtectedRoute component={Admindashboard} />} /> */}
       </Routes>
     </BrowserRouter>
   );
