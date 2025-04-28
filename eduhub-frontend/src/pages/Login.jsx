@@ -78,94 +78,133 @@
 // export default Login;
 
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
 
-function Login() {
-  const navigate = useNavigate();
-  const [form, setForm] = useState({ username: "", password: "", role: "user" });
 
-  const handleLogin = async () => {
-    try {
-      if (!form.username || !form.password || !form.role) {
-        toast.error("⚠️ Please fill all fields!");
-        return;
-      }
 
-      // Dummy Check (Later Connect Real Backend)
-      // Let's assume admin = admin123/adminpass
-      // user = user123/userpass
-      if (
-        (form.username === "admin123" && form.password === "adminpass" && form.role === "admin") ||
-        (form.username === "user123" && form.password === "userpass" && form.role === "user")
-      ) {
-        localStorage.setItem("token", "dummy_token");
-        localStorage.setItem("role", form.role);
-        toast.success("✅ Login Successful!");
 
-        if (form.role === "admin") {
-          navigate("/admindashboard");
-        } else {
-          navigate("/userdashboard");
-        }
-      } else {
-        toast.error("❌ Incorrect Username, Password or Role!");
-      }
-    } catch (error) {
-      toast.error("❌ Login Failed!");
-    }
-  };
 
+
+//22222222222222222
+
+
+
+
+//3333333333
+
+
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+
+// Main App component - typically the root of a React application
+// In this step, it directly renders the LoginPage
+export default function App() {
+  // The main application container.
+  // It sets the background color and uses flexbox to center the login page.
+  // Styles applied here affect the entire viewport.
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
-    <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-      <div className="bg-blue-100 p-8 rounded-lg  w-full max-w-md">
-        <h2 className="text-3xl font-bold mb-6 text-center text-emerald-500">Login to EduHub</h2>
-
-        <input
-          type="text"
-          placeholder="Username"
-          className="bg-emerald-50 w-full p-3 mb-4 border rounded"
-          value={form.username}
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          className="bg-emerald-50 w-full p-3 mb-4 border rounded"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
-
-        {/* Role Selection */}
-        <select
-          className="bg-emerald-50 w-full p-3 mb-6 border rounded"
-          value={form.role}
-          onChange={(e) => setForm({ ...form, role: e.target.value })}
-        >
-          <option value="user">User</option>
-          <option value="admin">Admin</option>
-        </select>
-
-        <button
-          onClick={handleLogin}
-          className="w-full bg-gradient-to-r from-emerald-200 to-blue-500 text-white p-3 rounded hover:from-emerald-300 hover:to-blue-700 transition"
-        >
-          Login ➡️
-        </button>
-
-        <p className="text-center mt-4 text-gray-600">
-          Don't have an account?{" "}
-          <a href="/register" className="text-emerald-500 font-semibold">
-            Register
-          </a>
-        </p>
-      </div>
-      </div>
+    <div className="bg-slate-900 text-slate-200 flex items-center justify-center min-h-screen font-['Inter',_sans-serif]">
+      <LoginPage />
     </div>
   );
 }
 
-export default Login;
+// LoginPage Component - Renders the login form card
+function LoginPage() {
+  // This component represents the main login interface.
+  // It includes the card layout, header, form, inputs, and links.
+
+  // Prevent default form submission behavior for now
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    console.log('Login form submitted');
+    // Add actual login logic here in the future (e.g., API call)
+  };
+
+  return (
+    // Login Card Container: Styles the card appearance
+    <div className="bg-slate-800 p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-md">
+
+      {/* Header Section */}
+      <h1 className="text-2xl md:text-3xl font-bold text-center text-teal-400 mb-6">
+        Edu Hub Login
+      </h1>
+      <p className="text-center text-slate-400 mb-8 text-sm">
+        Welcome back! Please enter your details.
+      </p>
+
+      {/* Login Form */}
+      <form onSubmit={handleSubmit}>
+        {/* Email Input Field */}
+        <div className="mb-5">
+          <label htmlFor="email" className="block mb-2 text-sm font-medium text-slate-300">
+            Email Address
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="you@example.com"
+            required
+            className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg placeholder-slate-500 text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
+          />
+        </div>
+
+        {/* Password Input Field */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-300">
+              Password
+            </label>
+            {/* Placeholder link for password recovery */}
+            <a href="#" className="text-xs text-teal-400 hover:text-teal-300 transition duration-200">
+              Forgot Password?
+            </a>
+          </div>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Enter your password"
+            required
+            className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg placeholder-slate-500 text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200"
+          />
+        </div>
+
+        {/* Remember Me Checkbox */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              name="remember-me"
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-500 text-teal-500 focus:ring-teal-500 bg-slate-700 focus:ring-offset-slate-800" // Added focus offset
+            />
+            <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-400">
+              Remember me
+            </label>
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-teal-500 transition duration-200 shadow-md hover:shadow-lg"
+        >
+          Sign In
+        </button>
+
+        {/* Sign Up Link */}
+        <p className="text-center text-sm text-slate-400 mt-8">
+          Don't have an account?{' '} {/* Added space for better readability */}
+          {/* Placeholder link for sign up page */}
+          {/* <a href="#" className="font-medium text-teal-400 hover:text-teal-300 transition duration-200">
+            Sign Up
+          </a> */}
+          <NavLink to="/register" className="font-medium text-teal-400 hover:text-teal-300 transition duration-200">
+          Sign Up
+          </NavLink>
+        </p>
+      </form>
+    </div>
+  );
+}

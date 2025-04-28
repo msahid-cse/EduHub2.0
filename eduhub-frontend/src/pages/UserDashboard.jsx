@@ -160,7 +160,7 @@ function UserDashboard() {
           className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-xl shadow-lg border border-gray-100"
         >
           <h2 className="text-4xl font-extrabold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-500">
-            Welcome back, {username} <span className="animate-waving-hand">👋</span>
+            Welcome back, {username} <span className="animate-waving-hand text-yellow-300">👋</span>
           </h2>
           <p className="text-gray-600 text-lg mb-8">
             Your personalized career development hub is ready. Where would you like to start today?
@@ -204,17 +204,18 @@ function UserDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    // <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-min-screen">
       {/* Sidebar with dynamic state for collapse */}
-      <Sidebar activePage={activePage} setActivePage={setActivePage} collapsed={collapsed} setCollapsed={setCollapsed} />
+      <div className="w-[25%]"><Sidebar activePage={activePage} setActivePage={setActivePage} collapsed={collapsed} setCollapsed={setCollapsed} /></div>
       
       {/* Main Content Area */}
-      <main className={`flex-1 p-6 lg:p-10 overflow-auto transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'}`}>
+      <main className={`w-[400%] `}>
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+          <div className="">
+            <div className="">
+              <div className=""></div>
+              <p className="">Loading your dashboard...</p>
             </div>
           </div>
         ) : (
