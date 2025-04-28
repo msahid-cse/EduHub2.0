@@ -76,6 +76,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
+
 import Userdashboard from "./pages/UserDashboard";
 import Admindashboard from "./pages/AdminDashboard";
 import ResourceLibrary from "./pages/ResourceLibrary";
@@ -91,15 +92,16 @@ import SkillDevelopment from "./pages/SkillDevelopment"; // Your Skill Developme
 import CVBuilder from "./pages/CVBuilder"; // Your CV Builder page
 import GrowthAnalysis from "./pages/GrowthAnalysis"; // Your Growth Analysis page
 import EduHubWebsite from "./pages/EduHubWebsite"
+
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-// import Navbar from "./components/Navbar";
+import Navbar from "./components/Navbar";
 import Topbar from "./components/Topbar";  // Your Top Navbar
 
 function App() {
   return (
     <BrowserRouter>
-      {/* <Navbar /> */}
+      <Navbar />
  
 
       <Routes>
@@ -125,6 +127,9 @@ function App() {
         <Route path="/view-courses" element={<ViewCourses />} />
         <Route path="/view-jobs" element={<ViewJobs />} />
         <Route path="/EduHubWebsite" element={<EduHubWebsite />} />
+ 
+
+        
 
 
         {/* Protected Routes */}
