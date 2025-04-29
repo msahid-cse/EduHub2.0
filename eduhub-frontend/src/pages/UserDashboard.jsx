@@ -824,7 +824,7 @@ const UserDashboard = () => {
         <div className="p-4 border-b border-gray-800">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-400">
-              EduHub Global
+              EduHub
             </h1>
             <button 
               className="md:hidden p-1 text-gray-400 hover:text-white"
