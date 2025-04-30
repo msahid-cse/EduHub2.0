@@ -15,6 +15,7 @@ import PostJob from "./pages/PostJob";
 import ViewNotices from "./pages/ViewNotices";
 import ViewCourses from "./pages/ViewCourses";
 import ViewJobs from "./pages/ViewJobs";
+import JobDetails from "./pages/JobDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 // import Navbar from "./components/Navbar";
 
@@ -28,6 +29,8 @@ function App() {
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/jobs" element={<ViewJobs />} />
+        <Route path="/job/:id" element={<JobDetails />} />
         {/* <Route path="/usrerdashboard" element={<UserDashboard />} /> */}
         {/* <Route path="/admindashboard" element={<AdminDashboard />} /> */}
 
@@ -67,13 +70,13 @@ function App() {
             <ViewCourses />
           </ProtectedRoute>
         } />
-        <Route path="/view-jobs" element={
-          <ProtectedRoute>
-            <ViewJobs />
+        
+        {/* Admin Routes */}
+        <Route path="/admin" element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminDashboard />
           </ProtectedRoute>
         } />
-
-        {/* Protected Admin Routes */}
         <Route path="/admindashboard" element={
           <ProtectedRoute requiredRole="admin">
             <AdminDashboard />
@@ -92,6 +95,11 @@ function App() {
         <Route path="/post-job" element={
           <ProtectedRoute requiredRole="admin">
             <PostJob />
+          </ProtectedRoute>
+        } />
+        <Route path="/manage-jobs" element={
+          <ProtectedRoute requiredRole="admin">
+            <ViewJobs />
           </ProtectedRoute>
         } />
       </Routes>

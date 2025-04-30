@@ -18,7 +18,16 @@ import {
   GraduationCap,
   Bookmark,
   FileText,
-  ExternalLink
+  ExternalLink,
+  Phone,
+  // GitHub,
+  Code,
+  AtSign,
+  Upload,
+  Save,
+  Edit,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
 const UserDashboard = () => {
@@ -31,6 +40,27 @@ const UserDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileData, setProfileData] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    department: '',
+    university: '',
+    github: '',
+    codeforces: '',
+    linkedin: '',
+    twitter: '',
+    skills: [],
+    bio: '',
+    profilePicture: null
+  });
+  const [skillInput, setSkillInput] = useState('');
+  const [suggestedSkills, setSuggestedSkills] = useState([
+    'JavaScript', 'React', 'Node.js', 'Python', 'Java', 'C++', 
+    'Machine Learning', 'Data Science', 'Web Development', 'UI/UX Design',
+    'Database Management', 'Cloud Computing', 'DevOps', 'Cybersecurity'
+  ]);
   const navigate = useNavigate();
 
   // Load user information and mock data
@@ -48,13 +78,31 @@ const UserDashboard = () => {
     // Set default university if none found
     const userUniversity = localStorage.getItem('userUniversity') || 'University of Technology';
     const userCountry = localStorage.getItem('userCountry') || 'United States';
+    const userName = localStorage.getItem('userName') || 'John Doe';
+    const userBio = localStorage.getItem('userBio') || '';
+    const userDepartment = localStorage.getItem('userDepartment') || '';
+    const userPhone = localStorage.getItem('userPhone') || '';
+    const userSkills = JSON.parse(localStorage.getItem('userSkills') || '[]');
 
     setUserInfo({
       email: userEmail,
       role: userRole,
       university: userUniversity,
-      country: userCountry
+      country: userCountry,
+      name: userName
     });
+
+    // Initialize profile data
+    setProfileData(prevData => ({
+      ...prevData,
+      fullName: userName,
+      email: userEmail,
+      university: userUniversity,
+      bio: userBio,
+      department: userDepartment,
+      phoneNumber: userPhone,
+      skills: userSkills
+    }));
 
     // Load mock data
     loadMockData(userUniversity);
@@ -270,6 +318,102 @@ const UserDashboard = () => {
     course.university.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Function to handle adding a skill
+  const handleAddSkill = (skill) => {
+    if (skill && !profileData.skills.includes(skill)) {
+      setProfileData(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill]
+      }));
+      setSkillInput('');
+    }
+  };
+
+  // Function to handle removing a skill
+  const handleRemoveSkill = (skillToRemove) => {
+    setProfileData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
+  // Function to handle profile image change
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileData(prev => ({
+          ...prev,
+          profilePicture: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Function to save profile data
+  const handleSaveProfile = async () => {
+    try {
+      // Show loading state
+      const saveBtn = document.getElementById('saveProfileBtn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="animate-spin mr-2">⟳</span> Saving...';
+      }
+      
+      // Save to localStorage for demo purposes
+      localStorage.setItem('userName', profileData.fullName);
+      localStorage.setItem('userUniversity', profileData.university);
+      localStorage.setItem('userEmail', profileData.email);
+      localStorage.setItem('userBio', profileData.bio);
+      localStorage.setItem('userDepartment', profileData.department);
+      localStorage.setItem('userPhone', profileData.phoneNumber);
+      localStorage.setItem('userSkills', JSON.stringify(profileData.skills));
+      
+      // In a real application, you would send this data to your backend
+      // Simulating an API call with timeout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock API call (in a real app, this would be a fetch/axios call)
+      // const response = await fetch('/api/user/profile', {
+      //   method: 'PUT',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
+      //   },
+      //   body: JSON.stringify(profileData)
+      // });
+      
+      // Update the userInfo state
+      setUserInfo(prev => ({
+        ...prev,
+        name: profileData.fullName,
+        university: profileData.university,
+        email: profileData.email
+      }));
+      
+      // Reset button state
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<svg class="mr-2 w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H14L21 10V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 21V13H7V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3V8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Save Profile';
+      }
+      
+      // Show success message
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to update profile. Please try again.');
+      
+      // Reset button state on error
+      const saveBtn = document.getElementById('saveProfileBtn');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<svg class="mr-2 w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H14L21 10V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 21V13H7V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3V8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Save Profile';
+      }
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -281,6 +425,228 @@ const UserDashboard = () => {
     }
 
     switch (activeTab) {
+      case 'profile':
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <h2 className="text-2xl font-bold text-white">Your Profile</h2>
+              <span className="text-gray-400">Update your personal information and settings</span>
+            </div>
+            
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Profile Picture Section */}
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="w-48 h-48 rounded-full bg-gray-700 overflow-hidden relative group">
+                    {profileData.profilePicture ? (
+                      <img 
+                        src={profileData.profilePicture} 
+                        alt="Profile" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <User size={64} className="text-gray-400" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <label className="cursor-pointer flex flex-col items-center text-white">
+                        <Upload size={24} />
+                        <span className="text-sm mt-2">Upload Photo</span>
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={handleImageChange}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-medium text-white">{profileData.fullName || userInfo?.name}</h3>
+                  <p className="text-gray-400">Student at {profileData.university || userInfo?.university}</p>
+                </div>
+                
+                {/* Profile Info Form */}
+                <div className="md:col-span-2 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-400 mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={profileData.fullName}
+                        onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={profileData.email}
+                        onChange={(e) => setProfileData({...profileData, email: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        readOnly
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 mb-1">Phone Number</label>
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="tel"
+                          value={profileData.phoneNumber}
+                          onChange={(e) => setProfileData({...profileData, phoneNumber: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="+1 (555) 123-4567"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 mb-1">Department</label>
+                      <input
+                        type="text"
+                        value={profileData.department}
+                        onChange={(e) => setProfileData({...profileData, department: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        placeholder="Computer Science"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-400 mb-1">University</label>
+                      <input
+                        type="text"
+                        value={profileData.university}
+                        onChange={(e) => setProfileData({...profileData, university: e.target.value})}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4 mt-6">
+                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Social Profiles & Coding Platforms</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={profileData.github}
+                          onChange={(e) => setProfileData({...profileData, github: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="GitHub Username"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Code size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={profileData.codeforces}
+                          onChange={(e) => setProfileData({...profileData, codeforces: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Codeforces Handle"
+                        />
+                      </div>
+                      <div className="relative">
+                        <AtSign size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={profileData.linkedin}
+                          onChange={(e) => setProfileData({...profileData, linkedin: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="LinkedIn Username"
+                        />
+                      </div>
+                      <div className="relative">
+                        <AtSign size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={profileData.twitter}
+                          onChange={(e) => setProfileData({...profileData, twitter: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Twitter Handle"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4 mt-6">
+                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Skills</h3>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {profileData.skills.map((skill, index) => (
+                        <span 
+                          key={index} 
+                          className="bg-cyan-900/30 text-cyan-400 px-3 py-1 rounded-full text-sm flex items-center"
+                        >
+                          {skill}
+                          <button 
+                            onClick={() => handleRemoveSkill(skill)} 
+                            className="ml-2 text-cyan-400 hover:text-cyan-300"
+                          >
+                            <X size={14} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={skillInput}
+                          onChange={(e) => setSkillInput(e.target.value)}
+                          className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Add a skill (e.g., JavaScript, Python, Design)"
+                        />
+                        {skillInput && (
+                          <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
+                            {suggestedSkills
+                              .filter(skill => skill.toLowerCase().includes(skillInput.toLowerCase()))
+                              .map((skill, index) => (
+                                <div 
+                                  key={index}
+                                  className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
+                                  onClick={() => handleAddSkill(skill)}
+                                >
+                                  {skill}
+                                </div>
+                              ))
+                            }
+                          </div>
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => handleAddSkill(skillInput)}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4 mt-6">
+                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">About Me</h3>
+                    <textarea
+                      value={profileData.bio}
+                      onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-32"
+                      placeholder="Write a short bio about yourself..."
+                    ></textarea>
+                  </div>
+                  
+                  <div className="flex justify-end mt-6">
+                    <button 
+                      id="saveProfileBtn"
+                      onClick={handleSaveProfile}
+                      className="flex items-center px-6 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium transition-colors"
+                    >
+                      <Save size={18} className="mr-2" />
+                      Save Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      
       case 'courses':
         return (
           <div className="space-y-6">
@@ -561,7 +927,7 @@ const UserDashboard = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-900 to-black min-h-screen flex">
+    <div className="bg-gradient-to-br from-gray-900 to-black min-h-screen flex relative gap-0 md:gap-1">
       {/* Mobile menu button */}
       <button 
         className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-gray-800 text-gray-400 hover:text-white focus:outline-none"
@@ -571,13 +937,24 @@ const UserDashboard = () => {
       </button>
       
       {/* Sidebar */}
-      <div className={`bg-gray-900 border-r border-gray-800 w-64 fixed inset-y-0 left-0 transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 z-40`}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-center h-16 border-b border-gray-800">
-            <h1 className="text-2xl font-bold text-white flex items-center">
-              <GraduationCap className="w-7 h-7 mr-2 text-cyan-400" />
-              EduHub
-            </h1>
+      <div className={`bg-gray-900 border-r border-gray-800 fixed top-0 bottom-0 left-0 ${sidebarCollapsed ? 'w-20' : 'w-64'} transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-all duration-300 z-40 overflow-y-auto md:shadow-lg`}>
+        <div className="flex flex-col">
+          <div className="flex items-center justify-between h-16 border-b border-gray-800 px-4">
+            {!sidebarCollapsed && (
+              <h1 className="text-xl font-bold text-white flex items-center truncate">
+                <GraduationCap className="w-7 h-7 mr-2 text-cyan-400 flex-shrink-0" />
+                <span className="truncate">EduHub</span>
+              </h1>
+            )}
+            {sidebarCollapsed && (
+              <GraduationCap className="w-7 h-7 text-cyan-400 mx-auto" />
+            )}
+            <button 
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1 rounded-lg bg-gray-800 text-gray-400 hover:text-white hidden md:block"
+            >
+              {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            </button>
           </div>
           
           <nav className="flex-1 overflow-y-auto pt-4">
@@ -585,63 +962,81 @@ const UserDashboard = () => {
               <li>
                 <button 
                   onClick={() => setActiveTab('courses')}
-                  className={`w-full px-4 py-3 flex items-center space-x-3 rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'courses' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'courses' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="My Courses"
                 >
-                  <BookOpen className="w-5 h-5" />
-                  <span>My Courses</span>
+                  <BookOpen className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>My Courses</span>}
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => setActiveTab('profile')}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'profile' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="My Profile"
+                >
+                  <User className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>My Profile</span>}
                 </button>
               </li>
               <li>
                 <button 
                   onClick={() => setActiveTab('faculty')}
-                  className={`w-full px-4 py-3 flex items-center space-x-3 rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'faculty' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'faculty' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="Faculty"
                 >
-                  <Users className="w-5 h-5" />
-                  <span>Faculty</span>
+                  <Users className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>Faculty</span>}
                 </button>
               </li>
               <li>
                 <button 
                   onClick={() => setActiveTab('notices')}
-                  className={`w-full px-4 py-3 flex items-center space-x-3 rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'notices' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'notices' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="Notices"
                 >
-                  <Bell className="w-5 h-5" />
-                  <span>Notices</span>
+                  <Bell className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>Notices</span>}
                 </button>
               </li>
               <li>
                 <button 
                   onClick={() => setActiveTab('external')}
-                  className={`w-full px-4 py-3 flex items-center space-x-3 rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'external' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'external' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="External Courses"
                 >
-                  <Globe className="w-5 h-5" />
-                  <span>External Courses</span>
+                  <Globe className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>External Courses</span>}
                 </button>
               </li>
             </ul>
             
             <div className="px-3 py-4 mt-8">
               <div className="border-t border-gray-800 pt-4">
-                <h3 className="text-gray-500 uppercase text-xs font-semibold px-3 mb-2">
-                  Your Account
-                </h3>
+                {!sidebarCollapsed && (
+                  <h3 className="text-gray-500 uppercase text-xs font-semibold px-3 mb-2">
+                    Your Account
+                  </h3>
+                )}
                 <ul className="space-y-1">
                   <li>
                     <button 
                       onClick={() => navigate('/')} 
-                      className="w-full px-4 py-3 flex items-center space-x-3 rounded-lg hover:bg-gray-800 transition-colors text-gray-400"
+                      className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors text-gray-400`}
+                      title="Home Page"
                     >
-                      <Home className="w-5 h-5" />
-                      <span>Home Page</span>
+                      <Home className="w-5 h-5 flex-shrink-0" />
+                      {!sidebarCollapsed && <span>Home Page</span>}
                     </button>
                   </li>
                   <li>
                     <button 
                       onClick={handleLogout} 
-                      className="w-full px-4 py-3 flex items-center space-x-3 rounded-lg hover:bg-red-900/30 transition-colors text-red-400"
+                      className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-red-900/30 transition-colors text-red-400`}
+                      title="Logout"
                     >
-                      <LogOut className="w-5 h-5" />
-                      <span>Logout</span>
+                      <LogOut className="w-5 h-5 flex-shrink-0" />
+                      {!sidebarCollapsed && <span>Logout</span>}
                     </button>
                   </li>
                 </ul>
@@ -650,21 +1045,23 @@ const UserDashboard = () => {
           </nav>
           
           <div className="border-t border-gray-800 p-4">
-            <div className="flex items-center">
+            <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : ''}`}>
               <div className="bg-cyan-900/30 text-cyan-400 rounded-full w-10 h-10 flex items-center justify-center">
                 <User className="w-5 h-5" />
               </div>
-              <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-medium text-white truncate">{userInfo?.email || 'User'}</p>
-                <p className="text-xs text-gray-500 truncate">{userInfo?.university || 'University Student'}</p>
-              </div>
+              {!sidebarCollapsed && (
+                <div className="ml-3 overflow-hidden">
+                  <p className="text-sm font-medium text-white truncate">{userInfo?.email || 'User'}</p>
+                  <p className="text-xs text-gray-500 truncate">{userInfo?.university || 'University Student'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
       
       {/* Main Content Section */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 overflow-y-auto ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'} w-full md:w-auto pl-0 md:pl-4 bg-gray-900/30 md:rounded-l-lg md:shadow-xl transition-all duration-300`}>
         <header className="bg-gray-900/50 border-b border-gray-800 p-4 sticky top-0 z-30 backdrop-blur-sm">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-white capitalize flex items-center">
@@ -672,20 +1069,15 @@ const UserDashboard = () => {
               {activeTab === 'faculty' && <Users className="mr-2 w-5 h-5" />}
               {activeTab === 'notices' && <Bell className="mr-2 w-5 h-5" />}
               {activeTab === 'external' && <Globe className="mr-2 w-5 h-5" />}
+              {activeTab === 'profile' && <User className="mr-2 w-5 h-5" />}
               {activeTab}
             </h2>
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:block relative w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab}...`}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <button className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors relative">
+            <div className="flex items-center">
+              <button 
+                className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors relative"
+                onClick={() => setActiveTab('profile')}
+                title="Edit Profile"
+              >
                 <User className="w-5 h-5" />
                 <span className="absolute top-0 right-0 w-2 h-2 bg-green-500 rounded-full"></span>
               </button>

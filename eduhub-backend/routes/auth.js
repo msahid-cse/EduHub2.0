@@ -1,6 +1,5 @@
 import express from 'express';
 import { register, login, verifyEmail, resendVerificationCode, getCurrentUser } from '../controllers/authController.js';
-import { uploadCV } from '../middleware/upload.js';
 import { authMiddleware } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
 
@@ -9,7 +8,7 @@ const router = express.Router();
 // @route   POST /api/auth/register
 // @desc    Register a new user
 // @access  Public
-router.post('/register', uploadCV, register);
+router.post('/register', register);
 
 // @route   POST /api/auth/login
 // @desc    Login a user

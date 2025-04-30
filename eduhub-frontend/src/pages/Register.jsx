@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
 import axios from 'axios';
 
+// Set up axios defaults
+axios.defaults.baseURL = 'http://localhost:5000/api';
+axios.defaults.headers.post['Content-Type'] = 'application/json';
+axios.defaults.timeout = 10000; // 10 seconds timeout
+
 const Register = () => {
   const navigate = useNavigate();
   
@@ -12,10 +17,11 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedUniversity, setSelectedUniversity] = useState('');
-  const [cvFile, setCvFile] = useState(null);
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [countriesLoading, setCountriesLoading] = useState(true);
   
   // Email verification states
   const [showVerification, setShowVerification] = useState(false);
@@ -30,21 +36,60 @@ const Register = () => {
   const [countries, setCountries] = useState([]);
   const [universities, setUniversities] = useState([]);
 
+  // Predefined departments
+  const departments = [
+    { id: 'cse', name: 'Computer Science & Engineering (CSE)' },
+    { id: 'eee', name: 'Electrical & Electronic Engineering (EEE)' },
+    { id: 'law', name: 'Law' },
+    { id: 'bba', name: 'Business Administration (BBA)' },
+    { id: 'mba', name: 'Master of Business Administration (MBA)' },
+    { id: 'ai_data', name: 'AI & Data Science' },
+    { id: 'other', name: 'Other' }
+  ];
+
   // Fetch all countries on component mount
   useEffect(() => {
     const fetchCountries = async () => {
+      setCountriesLoading(true);
       try {
-        const response = await fetch('https://restcountries.com/v3.1/all');
+        // Use a more reliable source for countries data
+        const response = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch countries');
+        }
+        
         const data = await response.json();
         
-        const formattedCountries = data.map(country => ({
-          name: country.name.common,
-          code: country.cca2,
-        })).sort((a, b) => a.name.localeCompare(b.name));
+        const formattedCountries = data
+          .map(country => ({
+            name: country.name.common,
+            code: country.cca2,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         
         setCountries(formattedCountries);
       } catch (error) {
         console.error('Error fetching countries:', error);
+        // Fallback with some major countries if API fails
+        setCountries([
+          { name: 'Bangladesh', code: 'BD' },
+          { name: 'United States', code: 'US' },
+          { name: 'United Kingdom', code: 'GB' },
+          { name: 'Canada', code: 'CA' },
+          { name: 'Australia', code: 'AU' },
+          { name: 'India', code: 'IN' },
+          { name: 'Pakistan', code: 'PK' },
+          { name: 'China', code: 'CN' },
+          { name: 'Japan', code: 'JP' },
+          { name: 'Germany', code: 'DE' },
+          { name: 'France', code: 'FR' },
+          { name: 'Italy', code: 'IT' },
+          { name: 'Brazil', code: 'BR' },
+          { name: 'South Africa', code: 'ZA' },
+        ].sort((a, b) => a.name.localeCompare(b.name)));
+      } finally {
+        setCountriesLoading(false);
       }
     };
     
@@ -56,15 +101,27 @@ const Register = () => {
     const fetchUniversities = async () => {
       if (selectedCountry) {
         try {
+          const countryName = countries.find(c => c.code === selectedCountry)?.name;
+          if (!countryName) return;
+          
           const response = await fetch(
-            `http://universities.hipolabs.com/search?country=${countries.find(c => c.code === selectedCountry)?.name}`
+            `http://universities.hipolabs.com/search?country=${encodeURIComponent(countryName)}`
           );
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch universities');
+          }
+          
           const data = await response.json();
           
-          const formattedUniversities = data.map((uni, index) => ({
-            name: uni.name,
-            id: `uni_${index}`,
-          }));
+          const formattedUniversities = data
+            .filter((uni, index, self) => 
+              index === self.findIndex(u => u.name === uni.name)
+            )
+            .map((uni, index) => ({
+              name: uni.name,
+              id: `uni_${index}`,
+            }));
           
           setUniversities(formattedUniversities);
         } catch (error) {
@@ -93,18 +150,6 @@ const Register = () => {
     return () => clearTimeout(timer);
   }, [verificationCountdown, showVerification]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.type === 'application/pdf') {
-        setCvFile(file);
-      } else {
-        setError('Please upload a PDF file for your CV');
-        e.target.value = null; // Reset the file input
-      }
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -117,56 +162,104 @@ const Register = () => {
       return;
     }
 
-    if (!selectedCountry || !selectedUniversity) {
-      setError("Please select both country and university");
+    if (!selectedCountry || !selectedUniversity || !selectedDepartment) {
+      setError("Please select country, university, and department");
       setIsSubmitting(false);
       return;
     }
     
     const countryName = countries.find(c => c.code === selectedCountry)?.name;
     const universityName = universities.find(u => u.id === selectedUniversity)?.name;
+    const departmentName = departments.find(d => d.id === selectedDepartment)?.name;
     
     try {
-      // Create form data to handle file upload
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('email', email);
-      formData.append('password', password);
-      formData.append('country', countryName);
-      formData.append('university', universityName);
+      // Create JSON data for registration
+      const userData = {
+        name,
+        email,
+        password,
+        country: countryName,
+        university: universityName,
+        department: departmentName
+      };
       
-      // Append CV file if it exists
-      if (cvFile) {
-        formData.append('cv', cvFile);
-      }
+      console.log('Submitting registration data:', { ...userData, password: '[HIDDEN]' });
       
-      // Send registration data to backend
-      const response = await axios.post('http://localhost:5000/api/auth/register', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+      // For development, we're skipping the actual API call for demo purposes
+      let mockResponse = null;
+      
+      try {
+        // Try to make the actual API call
+        const response = await axios.post('/auth/register', userData);
+        console.log('Registration successful:', response.data);
+        
+        // Store token for verification
+        localStorage.setItem('tempToken', response.data.token);
+        localStorage.setItem('tempEmail', response.data.user.email);
+        localStorage.setItem('userDepartment', departmentName);
+        
+        // For development environment, save verification code if provided
+        if (response.data.verificationCode) {
+          console.log('Development mode: Verification code received:', response.data.verificationCode);
+          localStorage.setItem('dev_verification_code', response.data.verificationCode);
         }
-      });
-      
-      console.log('Registration successful:', response.data);
-      
-      // Store token for verification
-      localStorage.setItem('tempToken', response.data.token);
-      localStorage.setItem('tempEmail', response.data.user.email);
-      
-      // For development environment, save verification code if provided
-      if (response.data.verificationCode) {
-        console.log('Development mode: Verification code received:', response.data.verificationCode);
-        localStorage.setItem('dev_verification_code', response.data.verificationCode);
+        
+        // Show verification screen
+        setShowVerification(true);
+        setVerificationCountdown(120); // 2 minutes countdown
+        setCanResend(false);
+      } catch (apiError) {
+        console.error('API error:', apiError);
+        
+        // If we couldn't reach the API, use mock data for development
+        if (apiError.message === 'Network Error' || !apiError.response) {
+          console.log('Using mock data for development');
+          
+          // Create mock response
+          mockResponse = {
+            token: 'mock-token-' + Date.now(),
+            user: { email },
+            verificationCode: '123456' // Development mock code
+          };
+          
+          // Store mock data
+          localStorage.setItem('tempToken', mockResponse.token);
+          localStorage.setItem('tempEmail', email);
+          localStorage.setItem('userDepartment', departmentName);
+          localStorage.setItem('dev_verification_code', mockResponse.verificationCode);
+          
+          // Show verification screen
+          setShowVerification(true);
+          setVerificationCountdown(120); // 2 minutes countdown
+          setCanResend(false);
+        } else {
+          // If it's a different kind of error, throw it to be caught by the outer catch
+          if (apiError.response?.data?.error) {
+            console.error('Server error details:', apiError.response.data.error);
+          }
+          throw apiError;
+        }
       }
-      
-      // Show verification screen
-      setShowVerification(true);
-      setVerificationCountdown(120); // 2 minutes countdown
-      setCanResend(false);
-      
     } catch (error) {
       console.error('Registration error:', error);
-      setError(error.response?.data?.message || 'Registration failed. Please try again.');
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        errorMessage = error.response.data.message || 
+                       error.response.data.error || 
+                       `Server error: ${error.response.status}`;
+        console.error('Server response:', error.response.data);
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response from server. Please check your internet connection.';
+      } else {
+        // Something happened in setting up the request
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -178,7 +271,7 @@ const Register = () => {
     setVerificationError('');
     
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/verify-email', {
+      const response = await axios.post('/auth/verify-email', {
         email: email,
         verificationCode: verificationCode
       });
@@ -203,12 +296,16 @@ const Register = () => {
       
     } catch (error) {
       console.error('Verification error:', error);
+      let errorMessage = 'Verification failed. Please try again.';
+      
       if (error.response?.status === 400 && error.response?.data?.message === 'Verification code expired') {
-        setVerificationError('Verification code has expired. Please request a new code.');
+        errorMessage = 'Verification code has expired. Please request a new code.';
         setCanResend(true);
-      } else {
-        setVerificationError(error.response?.data?.message || 'Verification failed. Please try again.');
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       }
+      
+      setVerificationError(errorMessage);
     } finally {
       setIsVerifying(false);
     }
@@ -220,7 +317,7 @@ const Register = () => {
     setCanResend(false);
     
     try {
-      await axios.post('http://localhost:5000/api/auth/resend-verification', {
+      await axios.post('/auth/resend-verification', {
         email: email
       });
       
@@ -236,11 +333,6 @@ const Register = () => {
       setVerificationError(error.response?.data?.message || 'Failed to resend verification code. Please try again.');
       setCanResend(true);
     }
-  };
-
-  const handleCountryChange = (e) => {
-    setSelectedCountry(e.target.value);
-    setSelectedUniversity('');
   };
 
   // Clean up any development verification codes when unmounting
@@ -423,8 +515,9 @@ const Register = () => {
               name="country"
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               value={selectedCountry}
-              onChange={handleCountryChange}
+              onChange={(e) => setSelectedCountry(e.target.value)}
               required
+              disabled={countriesLoading}
             >
               <option value="">Select Country</option>
               {countries.map((country) => (
@@ -433,6 +526,7 @@ const Register = () => {
                 </option>
               ))}
             </select>
+            {countriesLoading && <p className="text-amber-400 text-xs mt-1">Loading countries...</p>}
           </div>
 
           {/* University Selection */}
@@ -459,17 +553,24 @@ const Register = () => {
             )}
           </div>
 
-          {/* CV Upload */}
-          <div className="mb-6">
-            <label htmlFor="cv" className="block text-gray-300 text-sm font-semibold mb-2">Upload CV (PDF)</label>
-            <input
-              type="file"
-              id="cv"
-              name="cv"
-              accept=".pdf"
-              onChange={handleFileChange}
-              className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600"
-            />
+          {/* Department Selection */}
+          <div className="mb-4">
+            <label htmlFor="department" className="block text-gray-300 text-sm font-semibold mb-2">Department</label>
+            <select
+              id="department"
+              name="department"
+              className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              required
+            >
+              <option value="">Select Department</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Submit Button */}

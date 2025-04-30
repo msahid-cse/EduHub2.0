@@ -27,4 +27,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    fs: {
+      // Allow serving files from one level up to the project root
+      allow: ['..']
+    },
+    hmr: {
+      // Disable the HMR overlay to prevent URI malformed errors
+      overlay: false
+    }
+  }
 })

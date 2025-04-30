@@ -1,4 +1,8 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+
+// Make sure JWT_SECRET is defined, using the same pattern as in authController
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
 export const authMiddleware = (req, res, next) => {
   // Get token from header
@@ -11,7 +15,7 @@ export const authMiddleware = (req, res, next) => {
 
   try {
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     // Add user from payload
     req.user = decoded;

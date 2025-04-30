@@ -45,6 +45,7 @@ import noticeRoutes from './routes/notice.js';
 import jobRoutes from './routes/job.js';
 import instructorRoutes from './routes/instructor.js';
 import feedbackRoutes from './routes/feedback.js';
+import universityRoutes from './routes/university.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -62,9 +63,29 @@ app.use(cors());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Connection Error:", err));
+const connectDB = async () => {
+  try {
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/eduhub';
+    console.log('Attempting to connect to MongoDB at:', mongoUri);
+    
+    await mongoose.connect(mongoUri);
+    console.log("MongoDB Connected Successfully");
+  } catch (err) {
+    console.error("MongoDB Connection Error:", err.message);
+    // Try connecting to localhost if the main connection fails
+    try {
+      console.log("Trying fallback connection to local MongoDB...");
+      await mongoose.connect('mongodb://127.0.0.1:27017/eduhub');
+      console.log("Connected to local MongoDB successfully");
+    } catch (fallbackErr) {
+      console.error("Fallback MongoDB connection failed:", fallbackErr.message);
+      console.error("Application may not function correctly without database connection");
+    }
+  }
+};
+
+// Initialize database connection
+connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -75,6 +96,7 @@ app.use('/api/notices', noticeRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/instructors', instructorRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/universities', universityRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

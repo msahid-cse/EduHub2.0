@@ -4,14 +4,22 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
+// Make sure JWT_SECRET is defined
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.warn('Warning: JWT_SECRET not found in environment variables');
+  console.warn('Using a randomly generated secret. This will invalidate all existing tokens when the server restarts.');
+  console.warn('Please set a proper JWT_SECRET in your .env file');
+}
+
 // Configure email transporter
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
   secure: true, // use SSL
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    user: process.env.EMAIL_USER || 'development@example.com',
+    pass: process.env.EMAIL_PASS || 'developmentpassword'
   },
   tls: {
     rejectUnauthorized: false
@@ -27,10 +35,42 @@ transporter.verify((error, success) => {
   }
 });
 
+// Email sending function for better error handling
+const sendEmail = async (mailOptions) => {
+  if (process.env.NODE_ENV === 'development') {
+    // In development, log the email content but don't actually try to send
+    console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
+    console.log('To:', mailOptions.to);
+    console.log('Subject:', mailOptions.subject);
+    console.log('Content contains verification code');
+    return { success: true, development: true };
+  }
+  
+  // In production, actually send the email
+  return new Promise((resolve, reject) => {
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Email sending error:', error);
+        reject(error);
+      } else {
+        console.log('Email sent:', info.response);
+        resolve(info);
+      }
+    });
+  });
+};
+
 // Register a new user
 export const register = async (req, res) => {
   try {
-    const { name, email, password, university, country } = req.body;
+    console.log('Register request received:', req.body);
+    const { name, email, password, university, country, department } = req.body;
+    
+    // Check if required fields are present
+    if (!name || !email || !password || !university || !country || !department) {
+      console.log('Missing required fields:', { name, email, password, university, country, department });
+      return res.status(400).json({ message: 'All fields are required' });
+    }
     
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -41,9 +81,6 @@ export const register = async (req, res) => {
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Get CV file path if uploaded
-    const cvPath = req.file ? req.file.path : '';
 
     // Generate verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -56,8 +93,8 @@ export const register = async (req, res) => {
       password: hashedPassword,
       university,
       country,
+      department,
       role: 'user', // Default to user
-      cvPath,
       verificationCode,
       verificationCodeExpires,
       isEmailVerified: false
@@ -67,7 +104,7 @@ export const register = async (req, res) => {
 
     // Send verification email
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_USER || 'development@example.com',
       to: email,
       subject: 'EduHub Email Verification',
       html: `
@@ -87,22 +124,8 @@ export const register = async (req, res) => {
 
     try {
       // Use Promise to properly handle email sending
-      await new Promise((resolve, reject) => {
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            console.error('Email sending error:', error);
-            console.error('Email configuration:', {
-              user: process.env.EMAIL_USER,
-              pass: '****' // Don't log the actual password
-            });
-            reject(error);
-          } else {
-            console.log('Verification email sent:', info.response);
-            console.log('Sent to:', email);
-            resolve(info);
-          }
-        });
-      });
+      await sendEmail(mailOptions);
+      console.log('Verification email sent or simulated');
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
       console.warn('Continuing with registration despite email failure');
@@ -112,10 +135,12 @@ export const register = async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
+    console.log('User registered successfully:', user._id);
+    
     res.status(201).json({
       message: 'User registered successfully. Please verify your email.',
       user: {
@@ -125,6 +150,7 @@ export const register = async (req, res) => {
         role: user.role,
         university: user.university,
         country: user.country,
+        department: user.department,
         isEmailVerified: user.isEmailVerified
       },
       token,
@@ -132,8 +158,12 @@ export const register = async (req, res) => {
       verificationCode: process.env.NODE_ENV === 'development' ? verificationCode : undefined
     });
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('Register error details:', error);
+    res.status(500).json({ 
+      message: 'Server error during registration',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -211,23 +241,7 @@ export const resendVerificationCode = async (req, res) => {
     };
 
     // Use Promise to properly handle email sending
-    await new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error('Email sending error:', error);
-          console.error('Email configuration:', {
-            user: process.env.EMAIL_USER,
-            pass: '****' // Don't log the actual password
-          });
-          console.error('Failed to send verification email to:', email);
-          reject(error);
-        } else {
-          console.log('Verification email sent:', info.response);
-          console.log('Resent verification code to:', email);
-          resolve(info);
-        }
-      });
-    });
+    await sendEmail(mailOptions);
 
     return res.status(200).json({ message: 'Verification code sent successfully' });
   } catch (error) {
@@ -247,52 +261,54 @@ export const login = async (req, res) => {
     // Admin credentials check
     if (email === 'admin@eduhub.com' && password === 'admin123') {
       const token = jwt.sign(
-        { role: 'admin' },
-        process.env.JWT_SECRET,
+        { userId: '000000000000000000000000', role: 'admin' },
+        JWT_SECRET,
         { expiresIn: '7d' }
       );
-
+      
       return res.status(200).json({
         message: 'Admin login successful',
+        token,
         user: {
-          name: 'Admin',
           email: 'admin@eduhub.com',
-          role: 'admin'
-        },
-        token
+          role: 'admin',
+          name: 'Admin',
+          userId: '000000000000000000000000'
+        }
       });
     }
 
-    // Regular user login
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      return res.status(400).json({ 
-        message: 'Email not verified', 
+      return res.status(401).json({ 
+        message: 'Please verify your email before logging in',
         needsVerification: true,
         email: user.email
       });
     }
 
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.status(200).json({
       message: 'Login successful',
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -300,9 +316,8 @@ export const login = async (req, res) => {
         role: user.role,
         university: user.university,
         country: user.country,
-        profilePicture: user.profilePicture
-      },
-      token
+        department: user.department
+      }
     });
   } catch (error) {
     console.error('Login error:', error);

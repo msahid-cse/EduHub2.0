@@ -27,9 +27,12 @@ const noticeSchema = new mongoose.Schema({
   postedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
   attachment: {
+    type: String
+  },
+  pdfAttachment: {
     type: String
   },
   createdAt: {

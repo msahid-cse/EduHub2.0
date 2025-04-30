@@ -1,6 +1,3 @@
-
-
-
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -11,7 +8,8 @@ import {
   TrendingUp, 
   LogOut,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  User
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,6 +27,7 @@ function Sidebar({ setPage, activePage }) {
 
   const navItems = [
     { id: "home", label: "Home", icon: <Home size={20} /> },
+    { id: "profile", label: "Profile", icon: <User size={20} /> },
     { id: "skill", label: "Skill Dev", icon: <Target size={20} /> },
     { id: "library", label: "Resources", icon: <BookOpen size={20} /> },
     { id: "cvbuilder", label: "CV Builder", icon: <FileText size={20} /> },

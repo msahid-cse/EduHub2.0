@@ -578,7 +578,7 @@ const TeacherSection = ({ instructors, universities, selectedUniversity, setSele
       const fetchUserDetails = async () => {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('http://localhost:5000/api/auth/me', {
+          const response = await axios.get('http://localhost:5000/api/auth/current-user', {
             headers: {
               Authorization: `Bearer ${token}`
             }
@@ -679,12 +679,81 @@ const TeacherSection = ({ instructors, universities, selectedUniversity, setSele
 const NoticeSection = ({ notices, selectedUniversity }) => {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userUniversity, setUserUniversity] = useState('');
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [userNotices, setUserNotices] = useState([]);
   
   useEffect(() => {
     // Check authentication status
     const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
     setIsLoggedIn(loggedIn);
-  }, []);
+    
+    // If logged in, get user's university and corresponding notices
+    if (loggedIn) {
+      setIsLoadingUser(true);
+      
+      // First check localStorage for university (as fallback)
+      const localUniversity = localStorage.getItem('userUniversity');
+      if (localUniversity) {
+        setUserUniversity(localUniversity);
+      }
+      
+      const fetchUserDetails = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get('http://localhost:5000/api/auth/current-user', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          if (response.data && response.data.user && response.data.user.university) {
+            const university = response.data.user.university;
+            setUserUniversity(university);
+            
+            // Also update localStorage in case it was missing
+            localStorage.setItem('userUniversity', university);
+            
+            // If selectedUniversity is not yet set, use the user's university
+            if (!selectedUniversity) {
+              try {
+                const noticesResponse = await axios.get(`http://localhost:5000/api/notices?university=${university}`);
+                setUserNotices(noticesResponse.data);
+              } catch (noticeError) {
+                console.error('Error fetching notices:', noticeError);
+                setUserNotices([]);
+              }
+            }
+          } else if (localUniversity && !selectedUniversity) {
+            // If API didn't return university but we have it in localStorage, use that
+            try {
+              const noticesResponse = await axios.get(`http://localhost:5000/api/notices?university=${localUniversity}`);
+              setUserNotices(noticesResponse.data);
+            } catch (noticeError) {
+              console.error('Error fetching notices:', noticeError);
+              setUserNotices([]);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching user details:', error);
+          // If API call fails but we have university in localStorage, use that
+          if (localUniversity && !selectedUniversity) {
+            try {
+              const noticesResponse = await axios.get(`http://localhost:5000/api/notices?university=${localUniversity}`);
+              setUserNotices(noticesResponse.data);
+            } catch (noticeError) {
+              console.error('Error fetching notices:', noticeError);
+              setUserNotices([]);
+            }
+          }
+        } finally {
+          setIsLoadingUser(false);
+        }
+      };
+      
+      fetchUserDetails();
+    }
+  }, [selectedUniversity]);
   
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -694,6 +763,10 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
   const handleLogin = () => {
     navigate('/login');
   };
+  
+  // Determine which notices to display
+  const displayNotices = selectedUniversity ? notices : userNotices;
+  const displayUniversity = selectedUniversity || userUniversity;
   
   return (
     <section className="mb-20 pt-16" id="notices">
@@ -705,12 +778,17 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
       </div>
       
       {isLoggedIn ? (
-        selectedUniversity ? (
-          notices.length > 0 ? (
+        isLoadingUser ? (
+          <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+            <p className="text-gray-400">Loading university notices...</p>
+          </div>
+        ) : displayUniversity ? (
+          displayNotices && displayNotices.length > 0 ? (
             <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700">
-              <h3 className="text-xl font-bold text-white mb-4">Notices from {selectedUniversity}</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Notices from {displayUniversity}</h3>
               <div className="space-y-4">
-                {notices.slice(0, 5).map((notice, index) => (
+                {displayNotices.slice(0, 5).map((notice, index) => (
                   <div 
                     key={index} 
                     className="p-4 rounded-lg border border-gray-700 hover:border-yellow-700 transition-all duration-300 bg-gray-900/80"
@@ -739,7 +817,7 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
                 ))}
               </div>
               
-              {notices.length > 5 && (
+              {displayNotices.length > 5 && (
                 <div className="mt-4 text-center">
                   <button 
                     onClick={() => navigate('/notices')}
@@ -754,14 +832,20 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
             <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700 text-center">
               <BellRing className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-white mb-2">No Notices Available</h3>
-              <p className="text-gray-400">There are no notices available for {selectedUniversity} at this time.</p>
+              <p className="text-gray-400">There are no notices available for {displayUniversity} at this time.</p>
             </div>
           )
         ) : (
           <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700 text-center">
             <BellRing className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">Select Your University</h3>
-            <p className="text-gray-400 mb-6">Please select your university to view relevant notices.</p>
+            <h3 className="text-xl font-bold text-white mb-2">University Information Not Found</h3>
+            <p className="text-gray-400 mb-4">We couldn't find your university information in your profile.</p>
+            <button 
+              onClick={() => navigate('/userdashboard')}
+              className="px-6 py-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition-colors"
+            >
+              Go to Profile Settings
+            </button>
           </div>
         )
       ) : (
@@ -782,49 +866,44 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
 };
 
 const JobSection = ({ jobs, isLoading }) => {
-  // Sample jobs for demonstration when API fails or is empty
-  const sampleJobs = [
-    {
-      title: 'Software Engineer',
-      company: 'TechNova Bangladesh',
-      location: 'Dhaka',
-      type: 'Full-time',
-      description: 'Looking for experienced software engineers with knowledge of JavaScript, React, and Node.js.',
-      postedDate: '2023-07-20'
-    },
-    {
-      title: 'Marketing Manager',
-      company: 'Global Brands Ltd',
-      location: 'Chittagong',
-      type: 'Full-time',
-      description: 'Seeking a marketing professional to lead our digital marketing efforts and brand campaigns.',
-      postedDate: '2023-07-18'
-    },
-    {
-      title: 'Data Analyst',
-      company: 'Analytics Solutions',
-      location: 'Dhaka',
-      type: 'Remote',
-      description: 'Join our analytics team to drive data-informed decisions for our clients across various industries.',
-      postedDate: '2023-07-15'
-    },
-    {
-      title: 'Electrical Engineer',
-      company: 'PowerTech Bangladesh',
-      location: 'Sylhet',
-      type: 'Full-time',
-      description: 'Designing and implementing electrical systems for renewable energy projects.',
-      postedDate: '2023-07-12'
-    }
-  ];
-  
-  // Use sample data when API data is empty
-  const displayJobs = isLoading || jobs.length === 0 ? sampleJobs : jobs;
+  const navigate = useNavigate();
+  const [jobListings, setJobListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get('http://localhost:5000/api/jobs');
+        setJobListings(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching jobs:', err);
+        setError('Failed to load job listings');
+        setJobListings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
   
   // Format date function
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
+  };
+
+  // Format job type for display
+  const formatJobType = (type) => {
+    if (!type) return 'N/A';
+    return type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
+  };
+
+  const handleJobClick = (jobId) => {
+    navigate(`/job/${jobId}`);
   };
 
   return (
@@ -839,45 +918,74 @@ const JobSection = ({ jobs, isLoading }) => {
         Find your dream job with our curated listings from top companies across Bangladesh. New opportunities added regularly.
       </p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {displayJobs.slice(0, 4).map((job, index) => (
-          <div key={index} className="rounded-xl p-6 bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="font-['Inter'] text-xl text-white">{job.title}</h3>
-              <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                job.type === 'Full-time' ? 'bg-green-500/20 text-green-400' :
-                job.type === 'Part-time' ? 'bg-blue-500/20 text-blue-400' :
-                job.type === 'Remote' ? 'bg-purple-500/20 text-purple-400' :
-                job.type === 'Internship' ? 'bg-amber-500/20 text-amber-400' :
-                'bg-gray-500/20 text-gray-400'
-              }`}>
-                {job.type}
-              </span>
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-green-500 mx-auto"></div>
+          <p className="mt-4 text-gray-400">Loading job opportunities...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-10">
+          <p className="text-red-400">{error}</p>
+        </div>
+      ) : (
+        <>
+          {jobListings.length === 0 ? (
+            <div className="bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl border border-gray-700 text-center mb-12">
+              <Briefcase className="h-16 w-16 text-green-500/50 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">Currently No Jobs Available</h3>
+              <p className="text-gray-400 mb-2">Our administrators have not posted any job opportunities yet.</p>
+              <p className="text-gray-400">Please check back later as new positions are added regularly.</p>
             </div>
-            
-            <div className="flex items-center mb-3 text-gray-400 text-sm">
-              <Building2 className="w-4 h-4 mr-2" /> {job.company}
-              <span className="mx-3">•</span>
-              <span>{job.location}</span>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+              {jobListings.slice(0, 4).map((job) => (
+                <div 
+                  key={job._id} 
+                  className="rounded-xl p-6 bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                  onClick={() => handleJobClick(job._id)}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="font-['Inter'] text-xl text-white group-hover:text-green-400 transition-colors">{job.title}</h3>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      job.type === 'full-time' ? 'bg-green-500/20 text-green-400' :
+                      job.type === 'part-time' ? 'bg-blue-500/20 text-blue-400' :
+                      job.type === 'remote' ? 'bg-purple-500/20 text-purple-400' :
+                      job.type === 'internship' ? 'bg-amber-500/20 text-amber-400' :
+                      'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {formatJobType(job.type)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center mb-3 text-gray-400 text-sm">
+                    <Building2 className="w-4 h-4 mr-2" /> {job.company}
+                    <span className="mx-3">•</span>
+                    <span>{job.location}</span>
+                  </div>
+                  
+                  <p className="font-['Source_Sans_Pro'] text-gray-300 mb-4 line-clamp-2">{job.description}</p>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-400">Posted on: {formatDate(job.createdAt)}</span>
+                    <button className="text-green-400 hover:text-green-300 transition-colors text-sm flex items-center">
+                      View Details <ArrowRight className="w-4 h-4 ml-1" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-            
-            <p className="font-['Source_Sans_Pro'] text-gray-300 mb-4 line-clamp-2">{job.description}</p>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-400">Posted on: {formatDate(job.postedDate)}</span>
-              <button className="text-green-400 hover:text-green-300 transition-colors text-sm flex items-center">
-                View Details <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
-            </div>
+          )}
+          
+          <div className="text-center">
+            <button 
+              onClick={() => navigate('/jobs')}
+              className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-transparent hover:from-green-600 hover:to-emerald-600 hover:scale-105 mx-auto"
+            >
+              Browse All Job Listings <Briefcase className="w-5 h-5 ml-2" />
+            </button>
           </div>
-        ))}
-      </div>
-      
-      <div className="mt-12 text-center">
-        <button className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-transparent hover:from-green-600 hover:to-emerald-600 hover:scale-105 mx-auto">
-          Browse All Job Listings <Briefcase className="w-5 h-5 ml-2" />
-        </button>
-      </div>
+        </>
+      )}
     </section>
   );
 };

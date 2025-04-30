@@ -53,6 +53,9 @@ function LoginPage() {
       if (response.data.user.country) {
         localStorage.setItem('userCountry', response.data.user.country);
       }
+      if (response.data.user.department) {
+        localStorage.setItem('userDepartment', response.data.user.department);
+      }
       
       // Redirect based on user role
       if (response.data.user.role === 'admin') {

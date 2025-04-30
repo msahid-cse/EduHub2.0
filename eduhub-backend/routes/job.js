@@ -1,62 +1,50 @@
 import express from 'express';
-import { auth, adminOnly } from '../middleware/auth.js';
+import { authMiddleware, adminOnly } from '../middleware/auth.js';
+import { 
+  getAllJobs, 
+  getJobById, 
+  createJob, 
+  updateJob, 
+  deleteJob, 
+  applyForJob, 
+  getJobsByType 
+} from '../controllers/jobController.js';
 
 const router = express.Router();
 
 // @route   GET /api/jobs
 // @desc    Get all jobs
 // @access  Public
-router.get('/', (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: 'All jobs' });
-});
-
-// @route   GET /api/jobs/:id
-// @desc    Get job by ID
-// @access  Public
-router.get('/:id', (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: `Job with id ${req.params.id}` });
-});
-
-// @route   POST /api/jobs
-// @desc    Create a new job
-// @access  Private/Admin
-router.post('/', auth, adminOnly, (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: 'Job created' });
-});
-
-// @route   PUT /api/jobs/:id
-// @desc    Update a job
-// @access  Private/Admin
-router.put('/:id', auth, adminOnly, (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: `Job with id ${req.params.id} updated` });
-});
-
-// @route   DELETE /api/jobs/:id
-// @desc    Delete a job
-// @access  Private/Admin
-router.delete('/:id', auth, adminOnly, (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: `Job with id ${req.params.id} deleted` });
-});
-
-// @route   POST /api/jobs/:id/apply
-// @desc    Apply for a job
-// @access  Private
-router.post('/:id/apply', auth, (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: `Applied for job with id ${req.params.id}` });
-});
+router.get('/', getAllJobs);
 
 // @route   GET /api/jobs/type/:type
 // @desc    Get jobs by type
 // @access  Public
-router.get('/type/:type', (req, res) => {
-  // This will be implemented with actual functionality later
-  res.json({ message: `Jobs of type ${req.params.type}` });
-});
+router.get('/type/:type', getJobsByType);
+
+// @route   GET /api/jobs/:id
+// @desc    Get job by ID
+// @access  Public
+router.get('/:id', getJobById);
+
+// @route   POST /api/jobs
+// @desc    Create a new job
+// @access  Private/Admin
+router.post('/', authMiddleware, adminOnly, createJob);
+
+// @route   PUT /api/jobs/:id
+// @desc    Update a job
+// @access  Private/Admin
+router.put('/:id', authMiddleware, adminOnly, updateJob);
+
+// @route   DELETE /api/jobs/:id
+// @desc    Delete a job
+// @access  Private/Admin
+router.delete('/:id', authMiddleware, adminOnly, deleteJob);
+
+// @route   POST /api/jobs/:id/apply
+// @desc    Apply for a job
+// @access  Private
+router.post('/:id/apply', authMiddleware, applyForJob);
 
 export default router; 
