@@ -36,6 +36,19 @@ const courseSchema = new mongoose.Schema({
     enum: ['academic', 'co-curricular'],
     required: true
   },
+  courseSegment: {
+    type: String,
+    enum: ['video', 'theory'],
+    required: true
+  },
+  videoUrl: {
+    type: String,
+    required: function() { return this.courseSegment === 'video'; }
+  },
+  theoryUrl: {
+    type: String,
+    required: function() { return this.courseSegment === 'theory'; }
+  },
   department: {
     type: String,
     required: function() { return this.courseType === 'academic'; }

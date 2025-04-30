@@ -25,6 +25,7 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState([]);
   const [recentNotices, setRecentNotices] = useState([]);
+  const [recentCourses, setRecentCourses] = useState([]);
 
   // Check if user is admin
   useEffect(() => {
@@ -61,10 +62,20 @@ const AdminDashboard = () => {
         const recentNoticesData = noticesResponse.data.slice(0, 5);
         setRecentNotices(recentNoticesData);
         
+        // Get courses count and data
+        const coursesResponse = await axios.get('http://localhost:5000/api/courses', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Get recent courses
+        const recentCoursesData = coursesResponse.data.slice(0, 5);
+        setRecentCourses(recentCoursesData);
+        
         setStats(prev => ({
           ...prev,
           jobs: jobsResponse.data.length,
-          notices: noticesResponse.data.length
+          notices: noticesResponse.data.length,
+          courses: coursesResponse.data.length
         }));
         
         // We'll add more stats fetching later
@@ -237,6 +248,102 @@ const AdminDashboard = () => {
                         <div className="text-sm text-gray-300">
                           {new Date(job.createdAt).toLocaleDateString()}
                         </div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button className="text-indigo-400 hover:text-indigo-300 mr-3">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button className="text-red-400 hover:text-red-300">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+        {/* Recent Courses */}
+        <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-white">Academic Courses</h2>
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => navigate('/upload-course')}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm flex items-center"
+              >
+                <PlusCircle className="h-4 w-4 mr-1" />
+                Add New
+              </button>
+              <button 
+                onClick={() => navigate('/manage-courses')}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm flex items-center"
+              >
+                <List className="h-4 w-4 mr-1" />
+                View All
+              </button>
+            </div>
+          </div>
+          
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
+              <p className="mt-3 text-gray-400">Loading courses...</p>
+            </div>
+          ) : recentCourses.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400">No courses uploaded yet</p>
+              <button 
+                onClick={() => navigate('/upload-course')}
+                className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm inline-flex items-center"
+              >
+                <PlusCircle className="h-4 w-4 mr-1" />
+                Upload Your First Course
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-gray-900 rounded-lg overflow-hidden">
+                <thead className="bg-gray-700">
+                  <tr>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Instructor</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Department</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Level</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {recentCourses.map(course => (
+                    <tr key={course._id} className="hover:bg-gray-800/60">
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-white">{course.title}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-300">{course.instructor}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${course.courseType === 'academic' ? 'bg-blue-100 text-blue-800' : 
+                          'bg-purple-100 text-purple-800'}`}>
+                          {course.courseType === 'academic' ? 'Academic' : 'Co-curricular'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-300">
+                          {course.courseType === 'academic' ? course.department : course.activityType}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${course.skillLevel === 'beginner' ? 'bg-green-100 text-green-800' : 
+                          course.skillLevel === 'intermediate' ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-red-100 text-red-800'}`}>
+                          {course.skillLevel.charAt(0).toUpperCase() + course.skillLevel.slice(1)}
+                        </span>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap text-right text-sm font-medium">
                         <button className="text-indigo-400 hover:text-indigo-300 mr-3">

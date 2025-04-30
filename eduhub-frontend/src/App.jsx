@@ -16,6 +16,7 @@ import ViewNotices from "./pages/ViewNotices";
 import ViewCourses from "./pages/ViewCourses";
 import ViewJobs from "./pages/ViewJobs";
 import JobDetails from "./pages/JobDetails";
+import CourseDetails from "./pages/CourseDetails";
 import ProtectedRoute from "./components/ProtectedRoute";
 // import Navbar from "./components/Navbar";
 
@@ -31,6 +32,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/jobs" element={<ViewJobs />} />
         <Route path="/job/:id" element={<JobDetails />} />
+        <Route path="/course/:id" element={<CourseDetails />} />
+        <Route path="/courses" element={<ViewCourses />} />
         {/* <Route path="/usrerdashboard" element={<UserDashboard />} /> */}
         {/* <Route path="/admindashboard" element={<AdminDashboard />} /> */}
 
@@ -63,11 +66,6 @@ function App() {
         <Route path="/view-notices" element={
           <ProtectedRoute>
             <ViewNotices />
-          </ProtectedRoute>
-        } />
-        <Route path="/view-courses" element={
-          <ProtectedRoute>
-            <ViewCourses />
           </ProtectedRoute>
         } />
         

@@ -28,7 +28,9 @@ import {
   Leaf,
   Dumbbell,
   MoveRight,
-  Brain
+  Brain,
+  Video,
+  FileText
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
@@ -267,11 +269,11 @@ const AcademicCoursesSection = ({ courses, isLoading }) => {
   });
   
   const handleDepartmentClick = (department) => {
-    if (isLoggedIn) {
-      setSelectedDepartment(department);
-    } else {
-      navigate('/login');
-    }
+    setSelectedDepartment(department);
+  };
+  
+  const handleCourseClick = (courseId) => {
+    navigate(`/course/${courseId}`);
   };
   
   return (
@@ -360,10 +362,11 @@ const AcademicCoursesSection = ({ courses, isLoading }) => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {departmentGroups[selectedDepartment].map((course, index) => (
+                  {departmentGroups[selectedDepartment].map((course) => (
                     <div
-                      key={index}
-                      className="bg-gray-800/50 hover:bg-gray-800 backdrop-blur-sm rounded-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl border border-gray-700 overflow-hidden group"
+                      key={course._id}
+                      onClick={() => handleCourseClick(course._id)}
+                      className="bg-gray-800/50 hover:bg-gray-800 backdrop-blur-sm rounded-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl border border-gray-700 overflow-hidden group cursor-pointer"
                     >
                       <div className="h-40 overflow-hidden relative">
                         <img
@@ -372,6 +375,20 @@ const AcademicCoursesSection = ({ courses, isLoading }) => {
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-60"></div>
+                        
+                        {course.courseSegment === 'video' && (
+                          <div className="absolute top-2 right-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                            <Video className="w-3 h-3 mr-1" />
+                            Video
+                          </div>
+                        )}
+                        
+                        {course.courseSegment === 'theory' && (
+                          <div className="absolute top-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                            <FileText className="w-3 h-3 mr-1" />
+                            Theory
+                          </div>
+                        )}
                       </div>
                       
                       <div className="p-5">
@@ -430,11 +447,11 @@ const CoCurricularCoursesSection = ({ courses, isLoading }) => {
   });
   
   const handleActivityClick = (activity) => {
-    if (isLoggedIn) {
-      setSelectedActivity(activity);
-    } else {
-      navigate('/login');
-    }
+    setSelectedActivity(activity);
+  };
+  
+  const handleCourseClick = (courseId) => {
+    navigate(`/course/${courseId}`);
   };
   
   return (
@@ -523,10 +540,11 @@ const CoCurricularCoursesSection = ({ courses, isLoading }) => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activityGroups[selectedActivity].map((course, index) => (
+                  {activityGroups[selectedActivity].map((course) => (
                     <div
-                      key={index}
-                      className="bg-gray-800/50 hover:bg-gray-800 backdrop-blur-sm rounded-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl border border-gray-700 overflow-hidden group"
+                      key={course._id}
+                      onClick={() => handleCourseClick(course._id)}
+                      className="bg-gray-800/50 hover:bg-gray-800 backdrop-blur-sm rounded-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl border border-gray-700 overflow-hidden group cursor-pointer"
                     >
                       <div className="h-40 overflow-hidden relative">
                         <img
@@ -535,6 +553,20 @@ const CoCurricularCoursesSection = ({ courses, isLoading }) => {
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-60"></div>
+                        
+                        {course.courseSegment === 'video' && (
+                          <div className="absolute top-2 right-2 bg-blue-500/80 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                            <Video className="w-3 h-3 mr-1" />
+                            Video
+                          </div>
+                        )}
+                        
+                        {course.courseSegment === 'theory' && (
+                          <div className="absolute top-2 right-2 bg-green-500/80 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                            <FileText className="w-3 h-3 mr-1" />
+                            Theory
+                          </div>
+                        )}
                       </div>
                       
                       <div className="p-5">
