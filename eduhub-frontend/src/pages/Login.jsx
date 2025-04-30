@@ -1,98 +1,6 @@
-
-
-// import { useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import { toast } from "react-toastify";
-
-// function Login() {
-//   const navigate = useNavigate();
-//   const [form, setForm] = useState({ username: "", password: "", role: "user" });
-
-//   const handleLogin = async () => {
-//     try {
-//       if (!form.username || !form.password || !form.role) {
-//         toast.error("Please fill all fields!");
-//         return;
-//       }
-
-//       // TODO: Connect with real backend later
-//       console.log("Logging in", form);
-
-//       // Simulate Login
-//       localStorage.setItem("token", "dummy_token");
-//       localStorage.setItem("role", form.role);
-//       toast.success("Login Successful!");
-
-//       navigate("/userdashboard");
-//     } catch (error) {
-//       toast.error("Login Failed!");
-//     }
-//   };
-
-//   return (
-//     <div className="flex min-h-screen items-center justify-center bg-gray-100">
-//       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-//         <h2 className="text-3xl font-bold mb-6 text-center text-blue-700">Login to EduHub</h2>
-
-//         <input
-//           type="text"
-//           placeholder="Username"
-//           className="w-full p-3 mb-4 border rounded"
-//           value={form.username}
-//           onChange={(e) => setForm({ ...form, username: e.target.value })}
-//         />
-
-//         <input
-//           type="password"
-//           placeholder="Password"
-//           className="w-full p-3 mb-4 border rounded"
-//           value={form.password}
-//           onChange={(e) => setForm({ ...form, password: e.target.value })}
-//         />
-
-//         {/* Role Selection */}
-//         <select
-//           className="w-full p-3 mb-6 border rounded"
-//           value={form.role}
-//           onChange={(e) => setForm({ ...form, role: e.target.value })}
-//         >
-//           <option value="user">User</option>
-//           <option value="admin">Admin</option>
-//         </select>
-
-//         <button
-//           onClick={handleLogin}
-//           className="w-full bg-gradient-to-r from-blue-500 to-blue-700 text-white p-3 rounded hover:from-blue-600 hover:to-blue-800 transition"
-//         >
-//           Login ➡️
-//         </button>
-
-//         <p className="text-center mt-4 text-gray-600">
-//           Don't have an account? <a href="/register" className="text-blue-600 font-semibold">Register</a>
-//         </p>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default Login;
-
-
-
-
-
-
-
-
-//22222222222222222
-
-
-
-
-//3333333333
-
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 
 export default function App() {
   return (
@@ -103,17 +11,49 @@ export default function App() {
 }
 
 function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
     role: 'user' // Default role
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Login form submitted with:', formData);
-    // Add actual login logic here (e.g., API call with role)
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Call backend API for login
+      const response = await axios.post('http://localhost:5000/api/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
+      
+      // Store user info in localStorage
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('userEmail', response.data.user.email);
+      localStorage.setItem('userRole', response.data.user.role);
+      localStorage.setItem('isLoggedIn', 'true');
+      
+      // Redirect based on user role
+      if (response.data.user.role === 'admin') {
+        navigate('/admindashboard');
+      } else {
+        // Check if we were redirected from another page
+        const from = location.state?.from?.pathname || '/userdashboard';
+        navigate(from);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError(error.response?.data?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -132,6 +72,12 @@ function LoginPage() {
       <p className="text-center text-slate-400 mb-8 text-sm">
         Welcome back! Please enter your details.
       </p>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* Email Input Field */}
@@ -208,9 +154,10 @@ function LoginPage() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-teal-500 transition duration-200 shadow-md hover:shadow-lg"
+          disabled={isLoading}
+          className={`w-full ${isLoading ? 'bg-teal-700' : 'bg-teal-500 hover:bg-teal-600'} text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-teal-500 transition duration-200 shadow-md hover:shadow-lg flex justify-center items-center`}
         >
-          Sign In
+          {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
 
         {/* Sign Up Link */}
