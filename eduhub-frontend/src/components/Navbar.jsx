@@ -55,7 +55,7 @@ const Navbar = () => {
         navigate('/userdashboard');
       }
     } else {
-      navigate('/dashboard');
+      navigate('/');
     }
   };
 
@@ -97,7 +97,7 @@ const Navbar = () => {
                   <NavLink to={userRole === 'admin' ? '/admindashboard' : '/userdashboard'}>
                     <button className="font-['Source_Sans_Pro'] text-gray-300 hover:text-white transition-colors flex items-center">
                       <User className="w-4 h-4 mr-1" />
-                      Profile
+                      Dashboard
                     </button>
                   </NavLink>
                 </li>

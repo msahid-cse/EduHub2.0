@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+const instructorSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -13,53 +13,42 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
-  password: {
+  university: {
     type: String,
     required: true
   },
-  role: {
+  department: {
     type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
+    required: true
+  },
+  position: {
+    type: String,
+    required: true
+  },
+  bio: {
+    type: String,
+    default: ''
   },
   profilePicture: {
     type: String,
     default: ''
   },
-  cvPath: {
-    type: String,
-    default: ''
+  contactInfo: {
+    phone: String,
+    website: String,
+    address: String
   },
-  university: {
-    type: String,
-    required: true
-  },
-  country: {
-    type: String,
-    required: true
-  },
-  skills: [{
+  specializations: [{
     type: String
   }],
   courses: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course'
   }],
-  jobsApplied: [{
+  createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Job'
-  }],
-  isEmailVerified: {
-    type: Boolean,
-    default: false
-  },
-  verificationCode: {
-    type: String,
-    default: null
-  },
-  verificationCodeExpires: {
-    type: Date,
-    default: null
+    ref: 'User',
+    required: true
   },
   createdAt: {
     type: Date,
@@ -67,6 +56,6 @@ const userSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-const User = mongoose.model('User', userSchema);
+const Instructor = mongoose.model('Instructor', instructorSchema);
 
-export default User; 
+export default Instructor; 

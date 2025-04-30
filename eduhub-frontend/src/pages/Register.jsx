@@ -10,13 +10,21 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('user');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedUniversity, setSelectedUniversity] = useState('');
   const [cvFile, setCvFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [error, setError] = useState('');
+  
+  // Email verification states
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+  const [verificationSuccess, setVerificationSuccess] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCountdown, setVerificationCountdown] = useState(0);
+  const [canResend, setCanResend] = useState(false);
   
   // State for API data
   const [countries, setCountries] = useState([]);
@@ -71,6 +79,20 @@ const Register = () => {
     fetchUniversities();
   }, [selectedCountry, countries]);
 
+  // Countdown timer for verification code
+  useEffect(() => {
+    let timer;
+    if (verificationCountdown > 0) {
+      timer = setTimeout(() => {
+        setVerificationCountdown(verificationCountdown - 1);
+      }, 1000);
+    } else if (verificationCountdown === 0 && showVerification) {
+      setCanResend(true);
+    }
+    
+    return () => clearTimeout(timer);
+  }, [verificationCountdown, showVerification]);
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -110,7 +132,6 @@ const Register = () => {
       formData.append('name', name);
       formData.append('email', email);
       formData.append('password', password);
-      formData.append('role', role);
       formData.append('country', countryName);
       formData.append('university', universityName);
       
@@ -126,23 +147,23 @@ const Register = () => {
         }
       });
       
-      // On successful registration
-      setRegistrationSuccess(true);
+      console.log('Registration successful:', response.data);
       
-      // Store token and user info
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('userEmail', response.data.user.email);
-      localStorage.setItem('userRole', response.data.user.role);
-      localStorage.setItem('isLoggedIn', 'true');
+      // Store token for verification
+      localStorage.setItem('tempToken', response.data.token);
+      localStorage.setItem('tempEmail', response.data.user.email);
       
-      setTimeout(() => {
-        // Redirect based on role
-        if (response.data.user.role === 'admin') {
-          navigate('/admindashboard');
-        } else {
-          navigate('/userdashboard');
-        }
-      }, 2000);
+      // For development environment, save verification code if provided
+      if (response.data.verificationCode) {
+        console.log('Development mode: Verification code received:', response.data.verificationCode);
+        localStorage.setItem('dev_verification_code', response.data.verificationCode);
+      }
+      
+      // Show verification screen
+      setShowVerification(true);
+      setVerificationCountdown(120); // 2 minutes countdown
+      setCanResend(false);
+      
     } catch (error) {
       console.error('Registration error:', error);
       setError(error.response?.data?.message || 'Registration failed. Please try again.');
@@ -151,10 +172,83 @@ const Register = () => {
     }
   };
 
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    setIsVerifying(true);
+    setVerificationError('');
+    
+    try {
+      const response = await axios.post('http://localhost:5000/api/auth/verify-email', {
+        email: email,
+        verificationCode: verificationCode
+      });
+      
+      // On successful verification
+      setRegistrationSuccess(true);
+      
+      // Perform login
+      localStorage.setItem('token', localStorage.getItem('tempToken'));
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userRole', 'user');
+      
+      // Clean up temp storage
+      localStorage.removeItem('tempToken');
+      localStorage.removeItem('tempEmail');
+      localStorage.removeItem('dev_verification_code');
+      
+      setTimeout(() => {
+        navigate('/userdashboard');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Verification error:', error);
+      if (error.response?.status === 400 && error.response?.data?.message === 'Verification code expired') {
+        setVerificationError('Verification code has expired. Please request a new code.');
+        setCanResend(true);
+      } else {
+        setVerificationError(error.response?.data?.message || 'Verification failed. Please try again.');
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setVerificationError('');
+    setVerificationSuccess('');
+    setCanResend(false);
+    
+    try {
+      await axios.post('http://localhost:5000/api/auth/resend-verification', {
+        email: email
+      });
+      
+      setVerificationCountdown(120); // Reset countdown
+      setVerificationSuccess('Verification code resent successfully!');
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setVerificationSuccess('');
+      }, 5000);
+    } catch (error) {
+      console.error('Resend error:', error);
+      setVerificationError(error.response?.data?.message || 'Failed to resend verification code. Please try again.');
+      setCanResend(true);
+    }
+  };
+
   const handleCountryChange = (e) => {
     setSelectedCountry(e.target.value);
     setSelectedUniversity('');
   };
+
+  // Clean up any development verification codes when unmounting
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem('dev_verification_code');
+    };
+  }, []);
 
   if (registrationSuccess) {
     return (
@@ -163,6 +257,85 @@ const Register = () => {
           <h2 className="text-2xl md:text-3xl font-bold text-teal-400 mb-6">Registration Successful!</h2>
           <p className="text-gray-300 mb-6">You will be redirected shortly.</p>
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Email verification screen
+  if (showVerification) {
+    // Get verification code from development storage if available
+    const devVerificationCode = localStorage.getItem('dev_verification_code');
+    
+    return (
+      <div className="bg-slate-900 text-slate-200 flex items-center justify-center min-h-screen font-['Inter',_sans-serif]">
+        <div className="bg-slate-800 p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-md">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-teal-400 mb-6">Verify Your Email</h2>
+          <p className="text-gray-300 text-center mb-6">
+            We've sent a verification code to <span className="font-semibold">{email}</span>
+          </p>
+          
+          {verificationError && (
+            <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
+              {verificationError}
+            </div>
+          )}
+          
+          {verificationSuccess && (
+            <div className="bg-green-500/20 border border-green-500 text-green-200 px-4 py-3 rounded mb-4">
+              {verificationSuccess}
+            </div>
+          )}
+          
+          {/* Development mode hint */}
+          {devVerificationCode && (
+            <div className="bg-yellow-500/20 border border-yellow-500 text-yellow-200 px-4 py-3 rounded mb-4">
+              <p>Development mode: Verification code is <strong>{devVerificationCode}</strong></p>
+              <p className="text-xs mt-1">(This message only appears in development environment)</p>
+            </div>
+          )}
+          
+          <form onSubmit={handleVerifyEmail}>
+            <div className="mb-6">
+              <label htmlFor="verificationCode" className="block text-gray-300 text-sm font-semibold mb-2">Verification Code</label>
+              <input
+                type="text"
+                id="verificationCode"
+                className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-center text-xl tracking-widest"
+                placeholder="Enter 6-digit code"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                required
+                maxLength={6}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={isVerifying}
+              className={`w-full ${isVerifying ? 'bg-teal-700' : 'bg-teal-500 hover:bg-teal-600'} text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg mb-4`}
+            >
+              {isVerifying ? 'Verifying...' : 'Verify Email'}
+            </button>
+          </form>
+          
+          <div className="text-center mt-4">
+            <p className="text-gray-400 text-sm mb-2">
+              {verificationCountdown > 0 ? (
+                <>Code expires in: <span className="font-semibold">{Math.floor(verificationCountdown / 60)}:{String(verificationCountdown % 60).padStart(2, '0')}</span></>
+              ) : (
+                'Code has expired'
+              )}
+            </p>
+            
+            <button
+              onClick={handleResendCode}
+              disabled={!canResend}
+              className={`text-sm ${canResend ? 'text-teal-400 hover:text-teal-300 cursor-pointer' : 'text-gray-500 cursor-not-allowed'}`}
+            >
+              Resend verification code
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -242,23 +415,7 @@ const Register = () => {
             />
           </div>
 
-          {/* Role */}
-          <div className="mb-4">
-            <label htmlFor="role" className="block text-gray-300 text-sm font-semibold mb-2">Register As</label>
-            <select
-              id="role"
-              name="role"
-              className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              required
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-
-          {/* Country */}
+          {/* Country Selection */}
           <div className="mb-4">
             <label htmlFor="country" className="block text-gray-300 text-sm font-semibold mb-2">Country</label>
             <select
@@ -270,7 +427,7 @@ const Register = () => {
               required
             >
               <option value="">Select Country</option>
-              {countries.map(country => (
+              {countries.map((country) => (
                 <option key={country.code} value={country.code}>
                   {country.name}
                 </option>
@@ -278,7 +435,7 @@ const Register = () => {
             </select>
           </div>
 
-          {/* University */}
+          {/* University Selection */}
           <div className="mb-4">
             <label htmlFor="university" className="block text-gray-300 text-sm font-semibold mb-2">University</label>
             <select
@@ -291,60 +448,43 @@ const Register = () => {
               disabled={!selectedCountry}
             >
               <option value="">Select University</option>
-              {universities.map(university => (
+              {universities.map((university) => (
                 <option key={university.id} value={university.id}>
                   {university.name}
                 </option>
               ))}
             </select>
+            {selectedCountry && universities.length === 0 && (
+              <p className="text-amber-400 text-xs mt-1">Loading universities...</p>
+            )}
           </div>
 
-          {/* CV Upload (Optional) */}
+          {/* CV Upload */}
           <div className="mb-6">
-            <label htmlFor="cv" className="block text-gray-300 text-sm font-semibold mb-2">
-              CV Upload (Optional, PDF only)
-            </label>
-            <div className="flex flex-col">
-              <input
-                type="file"
-                id="cv"
-                name="cv"
-                accept=".pdf"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <label
-                htmlFor="cv"
-                className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer flex items-center justify-center"
-              >
-                Choose PDF File
-              </label>
-              {cvFile && (
-                <div className="mt-2 text-sm text-teal-400">
-                  Selected: {cvFile.name}
-                </div>
-              )}
-              <p className="text-xs text-gray-400 mt-1">
-                Upload your CV in PDF format (max 5MB)
-              </p>
-            </div>
+            <label htmlFor="cv" className="block text-gray-300 text-sm font-semibold mb-2">Upload CV (PDF)</label>
+            <input
+              type="file"
+              id="cv"
+              name="cv"
+              accept=".pdf"
+              onChange={handleFileChange}
+              className="w-full px-4 py-2 rounded-md bg-gray-700 text-gray-100 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600"
+            />
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full py-3 px-4 rounded-lg font-bold text-white transition-colors ${
-              isSubmitting ? 'bg-teal-700 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600'
-            }`}
+            className={`w-full ${isSubmitting ? 'bg-teal-700' : 'bg-teal-500 hover:bg-teal-600'} text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg hover:shadow-xl`}
           >
-            {isSubmitting ? 'Creating Account...' : 'Create Account'}
+            {isSubmitting ? 'Registering...' : 'Create Account'}
           </button>
 
           {/* Login Link */}
-          <p className="text-center mt-6 text-gray-400 text-sm">
+          <p className="text-center mt-6 text-gray-400">
             Already have an account?{' '}
-            <NavLink to="/login" className="text-teal-400 hover:text-teal-300 font-semibold">
+            <NavLink to="/login" className="text-teal-400 hover:text-teal-300 transition duration-300">
               Sign In
             </NavLink>
           </p>

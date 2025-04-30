@@ -16,27 +16,27 @@ import ViewNotices from "./pages/ViewNotices";
 import ViewCourses from "./pages/ViewCourses";
 import ViewJobs from "./pages/ViewJobs";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Navbar from "./components/Navbar";
+// import Navbar from "./components/Navbar";
 
 function App() {
   return (
     <BrowserRouter>
-      <Navbar />
+      {/* <Navbar /> */}
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/usrerdashboard" element={<UserDashboard />} />
-        <Route path="/admindashboard" element={<AdminDashboard />} />
+        {/* <Route path="/usrerdashboard" element={<UserDashboard />} /> */}
+        {/* <Route path="/admindashboard" element={<AdminDashboard />} /> */}
 
         {/* Protected User Routes */}
-        {/* <Route path="/userdashboard" element={
+        <Route path="/userdashboard" element={
           <ProtectedRoute requiredRole="user">
             <UserDashboard />
           </ProtectedRoute>
-        } /> */}
+        } />
         <Route path="/resource-library" element={
           <ProtectedRoute requiredRole="user">
             <ResourceLibrary />

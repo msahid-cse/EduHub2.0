@@ -12,7 +12,7 @@ function ProtectedRoute({ children, requiredRole }) {
   }
   
   // If requiredRole is specified, check if user has the required role
-  if (requiredRole && userRole !== requiredRole) {
+  if (requiredRole && userRole && userRole !== requiredRole) {
     // Redirect admin users to admin dashboard if trying to access user pages
     if (userRole === "admin" && requiredRole === "user") {
       return <Navigate to="/admindashboard" replace />;

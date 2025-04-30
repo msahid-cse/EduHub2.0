@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export const auth = (req, res, next) => {
+export const authMiddleware = (req, res, next) => {
   // Get token from header
   const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -21,6 +21,9 @@ export const auth = (req, res, next) => {
     res.status(401).json({ message: 'Token is not valid' });
   }
 };
+
+// For backward compatibility
+export const auth = authMiddleware;
 
 // Admin middleware
 export const adminOnly = (req, res, next) => {

@@ -31,6 +31,23 @@ const courseSchema = new mongoose.Schema({
     enum: ['beginner', 'intermediate', 'advanced'],
     default: 'beginner'
   },
+  courseType: {
+    type: String,
+    enum: ['academic', 'co-curricular'],
+    required: true
+  },
+  department: {
+    type: String,
+    required: function() { return this.courseType === 'academic'; }
+  },
+  activityType: {
+    type: String,
+    required: function() { return this.courseType === 'co-curricular'; }
+  },
+  university: {
+    type: String,
+    default: ''
+  },
   tags: [{
     type: String
   }],

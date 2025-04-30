@@ -16,29 +16,43 @@ function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: false,
-    role: 'user' // Default role
+    rememberMe: false
   });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsLoading(true);
     setError('');
+    setNeedsVerification(false);
     
     try {
       // Call backend API for login
+      console.log('Attempting login with:', { email: formData.email });
       const response = await axios.post('http://localhost:5000/api/auth/login', {
         email: formData.email,
         password: formData.password
       });
+      
+      console.log('Login successful:', response.data);
       
       // Store user info in localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userEmail', response.data.user.email);
       localStorage.setItem('userRole', response.data.user.role);
       localStorage.setItem('isLoggedIn', 'true');
+      
+      // Store additional user info if available
+      if (response.data.user.university) {
+        localStorage.setItem('userUniversity', response.data.user.university);
+      }
+      if (response.data.user.country) {
+        localStorage.setItem('userCountry', response.data.user.country);
+      }
       
       // Redirect based on user role
       if (response.data.user.role === 'admin') {
@@ -50,7 +64,24 @@ function LoginPage() {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.response?.data?.message || 'Something went wrong. Please try again.');
+      
+      // Check if email needs verification
+      if (error.response?.data?.needsVerification) {
+        console.log('Email needs verification:', error.response.data);
+        setNeedsVerification(true);
+        setVerificationEmail(error.response.data.email || formData.email);
+      } else {
+        let errorMessage = 'Something went wrong. Please try again.';
+        
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message === 'Network Error') {
+          errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+        }
+        
+        console.log('Setting error message:', errorMessage);
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -62,6 +93,29 @@ function LoginPage() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleUseAdminCredentials = () => {
+    setFormData({
+      email: 'admin@eduhub.com',
+      password: 'admin123',
+      rememberMe: false
+    });
+  };
+
+  const handleResendVerification = async () => {
+    setIsLoading(true);
+    try {
+      await axios.post('http://localhost:5000/api/auth/resend-verification', {
+        email: verificationEmail
+      });
+      setError('Verification code resent. Please check your email.');
+      setNeedsVerification(false);
+    } catch (error) {
+      setError('Failed to resend verification code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,6 +130,18 @@ function LoginPage() {
       {error && (
         <div className="bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
           {error}
+        </div>
+      )}
+
+      {needsVerification && (
+        <div className="bg-amber-500/20 border border-amber-500 text-amber-200 px-4 py-3 rounded mb-4">
+          <p>Your email is not verified. Please check your email for the verification code.</p>
+          <button 
+            onClick={handleResendVerification}
+            className="mt-2 text-sm text-amber-300 hover:text-amber-200 underline"
+          >
+            Resend verification code
+          </button>
         </div>
       )}
 
@@ -119,23 +185,6 @@ function LoginPage() {
           />
         </div>
 
-        {/* Role Selection Field */}
-        <div className="mb-5">
-          <label htmlFor="role" className="block mb-2 text-sm font-medium text-slate-300">
-            Login As
-          </label>
-          <select
-            id="role"
-            name="role"
-            value={formData.role}
-            onChange={handleChange}
-            className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition duration-200 appearance-none"
-          >
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
         {/* Remember Me Checkbox */}
         <div className="flex items-center mb-6">
           <input
@@ -159,6 +208,17 @@ function LoginPage() {
         >
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
+
+        {/* Admin Shortcut */}
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            onClick={handleUseAdminCredentials}
+            className="text-xs text-slate-400 hover:text-teal-400 transition duration-200"
+          >
+            Use admin credentials
+          </button>
+        </div>
 
         {/* Sign Up Link */}
         <p className="text-center text-sm text-slate-400 mt-8">
