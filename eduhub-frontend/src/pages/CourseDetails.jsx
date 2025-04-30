@@ -25,12 +25,40 @@ function CourseDetails() {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollmentError, setEnrollmentError] = useState(null);
   const [enrollmentSuccess, setEnrollmentSuccess] = useState(false);
+  const [courseProgress, setCourseProgress] = useState(0);
   
   // Check auth status
   useEffect(() => {
     const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
     setIsLoggedIn(loggedIn);
   }, []);
+  
+  // Get current progress
+  useEffect(() => {
+    if (id && isEnrolled) {
+      const progressData = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+      const currentProgress = progressData[id] || { percentComplete: 0 };
+      setCourseProgress(currentProgress.percentComplete || 0);
+    }
+  }, [id, isEnrolled]);
+  
+  // Function to update progress
+  const updateProgress = (newProgress) => {
+    const progressData = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+    const currentProgress = progressData[id] || { percentComplete: 0, completed: false };
+    
+    // Update progress value
+    currentProgress.percentComplete = newProgress;
+    currentProgress.completed = newProgress >= 100;
+    currentProgress.lastAccessed = new Date().toISOString();
+    
+    // Save to localStorage
+    progressData[id] = currentProgress;
+    localStorage.setItem('courseProgress', JSON.stringify(progressData));
+    
+    // Update state to refresh UI
+    setCourseProgress(newProgress);
+  };
   
   // Fetch course details
   useEffect(() => {
@@ -62,7 +90,11 @@ function CourseDetails() {
   useEffect(() => {
     if (course && isLoggedIn) {
       const userId = localStorage.getItem('userId');
-      setIsEnrolled(course.enrolledStudents.includes(userId));
+      // Check both API data and localStorage
+      const enrolledViaAPI = course.enrolledStudents.includes(userId);
+      const enrolledInLocalStorage = JSON.parse(localStorage.getItem('enrolledCourses') || '[]').includes(course._id);
+      
+      setIsEnrolled(enrolledViaAPI || enrolledInLocalStorage);
     }
   }, [course, isLoggedIn]);
   
@@ -108,6 +140,14 @@ function CourseDetails() {
         enrolledStudents: [...prev.enrolledStudents, localStorage.getItem('userId')]
       }));
       
+      // Store enrollment in localStorage to persist on page refresh
+      const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+      enrolledCourses.push(id);
+      localStorage.setItem('enrolledCourses', JSON.stringify(enrolledCourses));
+      
+      // Initialize progress
+      updateProgress(0);
+      
       // Clear success message after 3 seconds
       setTimeout(() => {
         setEnrollmentSuccess(false);
@@ -118,6 +158,13 @@ function CourseDetails() {
       
       if (err.response && err.response.status === 400 && err.response.data.message === 'You are already enrolled in this course') {
         setIsEnrolled(true);
+        
+        // Store enrollment in localStorage if not already there
+        const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+        if (!enrolledCourses.includes(id)) {
+          enrolledCourses.push(id);
+          localStorage.setItem('enrolledCourses', JSON.stringify(enrolledCourses));
+        }
       } else {
         setEnrollmentError(
           err.response?.data?.message || 
@@ -188,6 +235,22 @@ function CourseDetails() {
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
+                      onLoad={() => {
+                        // If user is enrolled, update progress when video loads
+                        if (isEnrolled) {
+                          const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+                          const currentProgress = courseProgress[id] || { percentComplete: 0, completed: false };
+                          
+                          // If this is the first time, set to at least 5%
+                          let newProgress = currentProgress.percentComplete || 0;
+                          if (newProgress < 5) {
+                            newProgress = 5;
+                          }
+                          
+                          // Update progress using the function
+                          updateProgress(newProgress);
+                        }
+                      }}
                     ></iframe>
                   ) : (
                     <div className="h-full w-full flex items-center justify-center">
@@ -205,6 +268,25 @@ function CourseDetails() {
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="inline-flex items-center bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-colors"
+                      onClick={() => {
+                        // If user is enrolled, update progress when opening the theory content
+                        if (isEnrolled) {
+                          const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+                          const currentProgress = courseProgress[id] || { percentComplete: 0, completed: false };
+                          
+                          // If this is the first time, set to at least 5%
+                          let newProgress = currentProgress.percentComplete || 0;
+                          if (newProgress < 5) {
+                            newProgress = 5;
+                          } else if (newProgress < 20) {
+                            // Increment progress a bit each time they access the theory content
+                            newProgress += 5;
+                          }
+                          
+                          // Update progress using the function
+                          updateProgress(newProgress);
+                        }
+                      }}
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />
                       View Course Material
@@ -213,15 +295,45 @@ function CourseDetails() {
                 </div>
               )}
               
+              {isLoggedIn && isEnrolled && course.courseSegment === 'video' && (
+                <div className="bg-gray-800/80 border-t border-gray-700 p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-white font-medium">Track Your Progress</h3>
+                      <p className="text-gray-400 text-sm">Update your progress after watching the video</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+                        const currentProgress = courseProgress[id] || { percentComplete: 0, completed: false };
+                        
+                        // Increment progress by 25% each time they click
+                        let newProgress = (currentProgress.percentComplete || 0) + 25;
+                        if (newProgress > 100) newProgress = 100;
+                        
+                        // Update progress using the function
+                        updateProgress(newProgress);
+                        
+                        // Show an alert
+                        alert(`Progress updated to ${newProgress}%`);
+                      }}
+                      className="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Mark Progress (+25%)
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <div className="p-6">
                 <h1 className="text-2xl md:text-3xl font-bold text-white mb-4">{course.title}</h1>
-                <p className="text-gray-300 mb-6">{course.description}</p>
+                <p className="text-gray-400 mb-6">{course.description}</p>
                 
                 <div className="border-t border-gray-700 pt-6 mt-6">
                   <h2 className="text-xl font-bold text-white mb-4">Course Content</h2>
-                  <div className="prose prose-invert max-w-none">
+                  <div className="prose prose-invert max-w-none text-gray-400">
                     {course.content.split('\n').map((paragraph, index) => (
-                      <p key={index} className="mb-4">{paragraph}</p>
+                      <p key={index} className="mb-4 text-gray-400">{paragraph}</p>
                     ))}
                   </div>
                 </div>
@@ -352,12 +464,58 @@ function CourseDetails() {
                     You are enrolled in this course
                   </div>
                   
-                  <button
-                    onClick={() => navigate('/userdashboard')}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors font-medium"
-                  >
-                    Go to My Dashboard
-                  </button>
+                  {/* Progress Bar */}
+                  <div className="mt-2 mb-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-400">Your Progress</span>
+                      <span className="text-white">
+                        {Math.round(courseProgress)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-teal-500"
+                        style={{ width: `${courseProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => {
+                        // Update progress when continuing learning
+                        const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+                        const currentProgress = courseProgress[id] || { percentComplete: 0, completed: false };
+                        
+                        // If this is the first time, set to at least 5%
+                        let newProgress = currentProgress.percentComplete || 0;
+                        if (newProgress < 5) {
+                          newProgress = 5;
+                        }
+                        
+                        // Update progress using the function
+                        updateProgress(newProgress);
+                        
+                        // For video courses, stay on this page; for theory courses, open the material
+                        if (course.courseSegment === 'video') {
+                          // For video course, just scroll to the video section
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        } else if (course.theoryUrl) {
+                          // For theory course, open the external link in a new tab
+                          window.open(course.theoryUrl, '_blank');
+                        }
+                      }}
+                      className="flex-1 bg-teal-500 hover:bg-teal-600 text-white py-3 rounded-lg transition-colors font-medium"
+                    >
+                      Continue Learning
+                    </button>
+                    <button
+                      onClick={() => navigate('/userdashboard', { state: { activeTab: 'growth' } })}
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors font-medium"
+                    >
+                      Track Progress
+                    </button>
+                  </div>
                 </div>
               )}
               

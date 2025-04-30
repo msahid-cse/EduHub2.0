@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   BookOpen,
   Users,
@@ -27,12 +27,19 @@ import {
   Save,
   Edit,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  BarChart,
+  TrendingUp,
+  Activity,
+  Award,
+  Play
 } from 'lucide-react';
+import axios from 'axios';
 
 const UserDashboard = () => {
+  const location = useLocation();
   const [userInfo, setUserInfo] = useState(null);
-  const [activeTab, setActiveTab] = useState('courses');
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'courses');
   const [courses, setCourses] = useState([]);
   const [faculty, setFaculty] = useState([]);
   const [notices, setNotices] = useState([]);
@@ -61,16 +68,28 @@ const UserDashboard = () => {
     'Machine Learning', 'Data Science', 'Web Development', 'UI/UX Design',
     'Database Management', 'Cloud Computing', 'DevOps', 'Cybersecurity'
   ]);
+  const [courseProgress, setCourseProgress] = useState({});
+  const [learningStats, setLearningStats] = useState({
+    totalHoursSpent: 0,
+    coursesCompleted: 0,
+    averageScore: 0,
+    streakDays: 0,
+    lastActiveDate: null,
+    skillsGained: [],
+    progressHistory: []
+  });
   const navigate = useNavigate();
 
-  // Load user information and mock data
+  // Load user information and course data
   useEffect(() => {
     // Get user information from login data
     const userEmail = localStorage.getItem('userEmail');
     const userRole = localStorage.getItem('userRole');
     const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
     
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !token) {
       navigate('/login');
       return;
     }
@@ -89,7 +108,8 @@ const UserDashboard = () => {
       role: userRole,
       university: userUniversity,
       country: userCountry,
-      name: userName
+      name: userName,
+      id: userId
     });
 
     // Initialize profile data
@@ -104,59 +124,277 @@ const UserDashboard = () => {
       skills: userSkills
     }));
 
-    // Load mock data
-    loadMockData(userUniversity);
+    // Fetch enrolled courses
+    fetchEnrolledCourses(token);
+    
+    // Fetch learning stats
+    fetchLearningStats(token);
+    
+    // Load mock data for other sections, but NOT for courses
+    loadMockDataExceptCourses(userUniversity);
   }, [navigate]);
 
-  const loadMockData = (university) => {
+  // Function to fetch enrolled courses
+  const fetchEnrolledCourses = async (token) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get('http://localhost:5000/api/users/enrolled-courses', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      // Check if response has data and is an array
+      if (response.data && Array.isArray(response.data)) {
+        // Get progress data from localStorage
+        const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+        const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+        
+        // Merge API data with localStorage progress data
+        const coursesWithUpdatedProgress = response.data.map(course => {
+          // If we have progress data in localStorage, use it
+          if (courseProgress[course._id]) {
+            return {
+              ...course,
+              progress: courseProgress[course._id]
+            };
+          }
+          return course;
+        });
+        
+        // If we have courses in localStorage that aren't in the API response, add them
+        const enrolledCourseIds = response.data.map(course => course._id);
+        const localOnlyCourseIds = enrolledCourses.filter(id => !enrolledCourseIds.includes(id));
+        
+        if (localOnlyCourseIds.length > 0) {
+          console.log('Found locally enrolled courses not in API response:', localOnlyCourseIds);
+          // For each locally enrolled course, try to fetch its details
+          for (const courseId of localOnlyCourseIds) {
+            try {
+              const courseResponse = await axios.get(`http://localhost:5000/api/courses/${courseId}`);
+              if (courseResponse.data) {
+                // Add progress data if available
+                const courseWithProgress = {
+                  ...courseResponse.data,
+                  progress: courseProgress[courseId] || {
+                    percentComplete: 0,
+                    completed: false,
+                    lastAccessed: new Date().toISOString()
+                  }
+                };
+                coursesWithUpdatedProgress.push(courseWithProgress);
+              }
+            } catch (err) {
+              console.error(`Error fetching details for course ${courseId}:`, err);
+            }
+          }
+        }
+        
+        setCourses(coursesWithUpdatedProgress);
+      } else {
+        console.error('Invalid response format:', response.data);
+        setCourses([]);
+      }
+    } catch (error) {
+      console.error('Error fetching enrolled courses:', error);
+      
+      // Fall back to locally stored enrolled courses
+      const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+      const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+      
+      if (enrolledCourses.length > 0) {
+        console.log('Using locally stored enrolled courses');
+        const mockCourses = [];
+        
+        // For each enrolled course ID, create a mock course object
+        enrolledCourses.forEach((courseId, index) => {
+          mockCourses.push({
+            _id: courseId,
+            title: `Enrolled Course ${index + 1}`,
+            courseType: 'academic',
+            courseSegment: index % 2 === 0 ? 'video' : 'theory',
+            department: 'CSE',
+            instructor: 'Unknown',
+            description: 'Course information unavailable while offline',
+            duration: 'Unknown',
+            skillLevel: 'beginner',
+            thumbnail: 'https://via.placeholder.com/640x360.png?text=Course',
+            progress: courseProgress[courseId] || {
+              percentComplete: 0,
+              completed: false,
+              lastAccessed: new Date()
+            }
+          });
+        });
+        
+        setCourses(mockCourses);
+      } else {
+        // Fall back to mock data if no locally stored enrolled courses
+        setCourses([
+          { 
+            _id: 'mock1',
+            title: 'Introduction to Computer Science',
+            courseType: 'academic',
+            courseSegment: 'video',
+            department: 'CSE',
+            instructor: 'Dr. Smith',
+            description: 'Fundamentals of programming and computer science principles',
+            duration: '12 weeks',
+            skillLevel: 'beginner',
+            thumbnail: 'https://via.placeholder.com/640x360.png?text=CS+Course',
+            videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            progress: {
+              percentComplete: 25,
+              completed: false,
+              lastAccessed: new Date()
+            }
+          },
+          { 
+            _id: 'mock2',
+            title: 'Advanced Mathematics',
+            courseType: 'academic',
+            courseSegment: 'theory',
+            department: 'Mathematics',
+            instructor: 'Dr. Johnson',
+            description: 'Advanced topics in calculus and linear algebra',
+            duration: '10 weeks',
+            skillLevel: 'advanced',
+            thumbnail: 'https://via.placeholder.com/640x360.png?text=Math+Course',
+            theoryUrl: 'https://example.com/math-pdf.pdf',
+            progress: {
+              percentComplete: 50,
+              completed: false,
+              lastAccessed: new Date()
+            }
+          }
+        ]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to update course progress
+  const updateCourseProgress = async (courseId, progressData) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Update progress in localStorage first
+      const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+      courseProgress[courseId] = {
+        ...(courseProgress[courseId] || {}),
+        ...progressData,
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem('courseProgress', JSON.stringify(courseProgress));
+      
+      // Update the course in the local state
+      setCourses(prevCourses => 
+        prevCourses.map(course => 
+          course._id === courseId 
+            ? { 
+                ...course, 
+                progress: { 
+                  ...course.progress, 
+                  ...progressData,
+                  lastUpdated: new Date()
+                } 
+              } 
+            : course
+        )
+      );
+      
+      // Then attempt to update on the server
+      const response = await axios.post(
+        `http://localhost:5000/api/users/courses/${courseId}/progress`,
+        progressData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error updating course progress:', error);
+      // Even if the API call fails, we've already updated localStorage and state
+      // so from the user's perspective, it still worked
+      return {
+        success: true,
+        message: 'Progress saved locally',
+        offline: true
+      };
+    }
+  };
+
+  // Function to view a course
+  const handleViewCourse = (courseId) => {
+    // Update the lastAccessed timestamp when viewing a course
+    const now = new Date();
+    
+    // Get current progress
+    const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+    const currentProgress = courseProgress[courseId] || { percentComplete: 0, completed: false };
+    
+    // If there was no previous progress or it was very low, set it to at least 5%
+    // This simulates that the user has at least started the course
+    if (!currentProgress.percentComplete || currentProgress.percentComplete < 5) {
+      currentProgress.percentComplete = 5;
+    }
+    
+    // Try to update progress on the server
+    updateCourseProgress(courseId, { 
+      lastAccessed: now,
+      percentComplete: currentProgress.percentComplete
+    })
+      .catch(err => console.error('Failed to update last accessed time:', err));
+      
+    // Navigate to the course details page
+    navigate(`/course/${courseId}`);
+  };
+
+  // Function to fetch learning stats
+  const fetchLearningStats = async (token) => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/users/learning-stats', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      if (response.data) {
+        setLearningStats(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching learning stats:', error);
+      
+      // Generate mock stats for development
+      setLearningStats({
+        totalHoursSpent: 24,
+        coursesCompleted: 2,
+        averageScore: 85,
+        streakDays: 5,
+        lastActiveDate: new Date().toISOString(),
+        skillsGained: ['JavaScript', 'React', 'Node.js'],
+        progressHistory: [
+          { date: '2023-01-01', hoursSpent: 1.5 },
+          { date: '2023-01-02', hoursSpent: 2.0 },
+          { date: '2023-01-03', hoursSpent: 1.0 },
+          { date: '2023-01-04', hoursSpent: 2.5 },
+          { date: '2023-01-05', hoursSpent: 3.0 }
+        ]
+      });
+    }
+  };
+
+  // Load mock data for everything except courses
+  const loadMockDataExceptCourses = (university) => {
     setIsLoading(true);
     
     // Simulate API call with timeout
     setTimeout(() => {
-      // Mock course data based on university
-      setCourses([
-        { 
-          id: 1, 
-          code: 'CS101', 
-          name: 'Introduction to Computer Science', 
-          professor: 'Dr. Smith', 
-          schedule: 'Mon/Wed 10:00-11:30',
-          credits: 3,
-          room: 'CSB-205',
-          description: 'Fundamentals of programming and computer science principles'
-        },
-        { 
-          id: 2, 
-          code: 'MATH201', 
-          name: 'Advanced Mathematics', 
-          professor: 'Dr. Johnson', 
-          schedule: 'Tue/Thu 13:00-14:30',
-          credits: 4,
-          room: 'MATH-101',
-          description: 'Advanced topics in calculus and linear algebra'
-        },
-        { 
-          id: 3, 
-          code: 'ENG105', 
-          name: 'Academic Writing', 
-          professor: 'Prof. Williams', 
-          schedule: 'Fri 9:00-12:00',
-          credits: 3,
-          room: 'ARTS-304',
-          description: 'Developing academic writing skills for university-level work'
-        },
-        { 
-          id: 4, 
-          code: 'PHY301', 
-          name: 'Quantum Physics', 
-          professor: 'Dr. Brown', 
-          schedule: 'Mon/Wed/Fri 14:00-15:00',
-          credits: 4,
-          room: 'SCI-412',
-          description: 'Introduction to quantum mechanics and its applications'
-        }
-      ]);
-
       // Mock faculty data
       setFaculty([
         { 
@@ -297,25 +535,29 @@ const UserDashboard = () => {
     navigate('/');
   };
 
-  const filteredCourses = courses.filter(course => 
-    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.professor.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCourses = courses.filter(course => {
+    const query = searchQuery.toLowerCase();
+    // Check both naming conventions for course properties
+    return (
+      ((course.name?.toLowerCase() || course.title?.toLowerCase() || '')).includes(query) ||
+      ((course.code?.toLowerCase() || course.courseCode?.toLowerCase() || '')).includes(query) ||
+      ((course.professor?.toLowerCase() || course.instructor?.toLowerCase() || '')).includes(query)
+    );
+  });
 
   const filteredFaculty = faculty.filter(member => 
-    member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.department.toLowerCase().includes(searchQuery.toLowerCase())
+    (member.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (member.department?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const filteredNotices = notices.filter(notice => 
-    notice.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    notice.content.toLowerCase().includes(searchQuery.toLowerCase())
+    (notice.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (notice.content?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const filteredExternalCourses = externalCourses.filter(course => 
-    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.university.toLowerCase().includes(searchQuery.toLowerCase())
+    (course.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (course.university?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   // Function to handle adding a skill
@@ -651,7 +893,7 @@ const UserDashboard = () => {
         return (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-2xl font-bold text-white">Your Courses at {userInfo?.university || 'Your University'}</h2>
+              <h2 className="text-2xl font-bold text-white">Your Enrolled Courses</h2>
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -669,45 +911,99 @@ const UserDashboard = () => {
                 <BookOpen className="mx-auto w-12 h-12 text-gray-500 mb-4" />
                 <h3 className="text-xl font-medium text-gray-300">No courses found</h3>
                 <p className="text-gray-500 mt-2">
-                  {searchQuery ? 'Try a different search term' : 'No courses available for the current semester'}
+                  {searchQuery ? 'Try a different search term' : 'You have not enrolled in any courses yet'}
                 </p>
+                <button 
+                  onClick={() => navigate('/courses')}
+                  className="mt-6 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-white text-sm font-medium transition-colors"
+                >
+                  Browse Available Courses
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredCourses.map(course => (
-                  <div key={course.id} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:bg-gray-800 transition-colors group">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xl font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors">
-                          {course.code}: {course.name}
-                        </h3>
-                        <p className="text-gray-300 mt-1 flex items-center">
-                          <Users className="inline mr-2 w-4 h-4" /> {course.professor}
-                        </p>
+                  <div key={course._id} className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden group">
+                    <div className="relative h-40 overflow-hidden">
+                      <img
+                        src={course.thumbnail || 'https://via.placeholder.com/640x360.png?text=Course+Image'}
+                        alt={course.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-70"></div>
+                      
+                      {/* Course progress indicator */}
+                      <div className="absolute bottom-0 left-0 right-0">
+                        <div className="bg-gray-900/80 px-3 py-2 flex items-center justify-between">
+                          <span className="text-sm text-white">
+                            {course.progress?.percentComplete || 0}% Complete
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            Last accessed: {course.progress?.lastAccessed 
+                              ? new Date(course.progress.lastAccessed).toLocaleDateString() 
+                              : 'Never'}
+                          </span>
+                        </div>
+                        <div className="h-1 w-full bg-gray-700">
+                          <div 
+                            className="h-1 bg-cyan-500" 
+                            style={{ width: `${course.progress?.percentComplete || 0}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <span className="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs">
-                        {course.credits} credits
-                      </span>
+                      
+                      {/* Course type badges */}
+                      <div className="absolute top-2 left-2 flex gap-2">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          course.courseType === 'academic' 
+                            ? 'bg-blue-900/80 text-blue-300' 
+                            : 'bg-green-900/80 text-green-300'
+                        }`}>
+                          {course.courseType === 'academic' ? 'Academic' : 'Co-Curricular'}
+                        </span>
+                        
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          course.courseSegment === 'video' 
+                            ? 'bg-purple-900/80 text-purple-300' 
+                            : 'bg-amber-900/80 text-amber-300'
+                        }`}>
+                          {course.courseSegment === 'video' ? 'Video' : 'Theory'}
+                        </span>
+                      </div>
                     </div>
                     
-                    <div className="mt-3 space-y-2">
-                      <p className="text-gray-400 flex items-center">
-                        <Clock className="inline mr-2 w-4 h-4" /> {course.schedule}
-                      </p>
-                      <p className="text-gray-400 flex items-center">
-                        <Home className="inline mr-2 w-4 h-4" /> {course.room}
-                      </p>
-                    </div>
-                    
-                    <p className="text-gray-400 mt-3 text-sm">{course.description}</p>
-                    
-                    <div className="mt-4 flex space-x-3">
-                      <button className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-sm font-medium transition-colors">
-                        View Syllabus
-                      </button>
-                      <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium transition-colors">
-                        Resources
-                      </button>
+                    <div className="p-5">
+                      <h3 className="text-xl font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors">
+                        {course.title}
+                      </h3>
+                      
+                      <div className="flex items-center mt-2 text-gray-300">
+                        <GraduationCap className="inline mr-2 w-4 h-4" /> {course.instructor}
+                      </div>
+                      
+                      <p className="text-gray-400 mt-3 line-clamp-2">{course.description}</p>
+                      
+                      <div className="mt-4 flex space-x-3">
+                        <button 
+                          onClick={() => handleViewCourse(course._id)}
+                          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-sm font-medium transition-colors flex-grow flex items-center justify-center"
+                        >
+                          {course.progress?.percentComplete > 0 ? (
+                            <>
+                              <Play className="w-4 h-4 mr-1" /> Continue Learning
+                            </>
+                          ) : (
+                            <>
+                              {course.courseSegment === 'video' ? 'Watch Course' : 'View Materials'}
+                            </>
+                          )}
+                        </button>
+                        {course.progress?.percentComplete === 100 && (
+                          <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-md text-sm flex items-center">
+                            Completed
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -921,6 +1217,215 @@ const UserDashboard = () => {
           </div>
         );
       
+      case 'growth':
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <h2 className="text-2xl font-bold text-white">Personal Growth Analysis</h2>
+              <span className="text-gray-400">Track your progress and growth</span>
+            </div>
+            
+            {/* Stats overview cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-gray-400 text-sm">Total Learning Hours</p>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.totalHoursSpent}</h3>
+                  </div>
+                  <div className="bg-cyan-900/30 p-2 rounded-lg">
+                    <Clock className="w-8 h-8 text-cyan-400" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-green-400 text-sm flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-1" /> 
+                    +2.5 hours this week
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-gray-400 text-sm">Courses Completed</p>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.coursesCompleted}</h3>
+                  </div>
+                  <div className="bg-cyan-900/30 p-2 rounded-lg">
+                    <Award className="w-8 h-8 text-cyan-400" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-gray-300 text-sm">
+                    {Math.round((learningStats.coursesCompleted / courses.length) * 100) || 0}% completion rate
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-gray-400 text-sm">Average Score</p>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.averageScore}%</h3>
+                  </div>
+                  <div className="bg-cyan-900/30 p-2 rounded-lg">
+                    <Activity className="w-8 h-8 text-cyan-400" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-green-400 text-sm flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-1" /> 
+                    +5% improvement
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-gray-400 text-sm">Learning Streak</p>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.streakDays} days</h3>
+                  </div>
+                  <div className="bg-cyan-900/30 p-2 rounded-lg">
+                    <BarChart className="w-8 h-8 text-cyan-400" />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="text-gray-300 text-sm">
+                    Last active: {learningStats.lastActiveDate ? new Date(learningStats.lastActiveDate).toLocaleDateString() : 'Today'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Course Progress Section */}
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-medium text-white mb-4">Course Progress Tracking</h3>
+              <div className="space-y-4">
+                {courses.length === 0 ? (
+                  <p className="text-gray-400">No courses found.</p>
+                ) : (
+                  courses.map(course => (
+                    <div key={course._id} className="p-4 border border-gray-700 rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-lg font-medium text-cyan-400">{course.title || course.name}</h4>
+                        <span className="text-sm text-gray-400">
+                          {course.progress?.percentComplete || 0}% Complete
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-700 rounded-full">
+                        <div 
+                          className="h-2 bg-cyan-500 rounded-full" 
+                          style={{ width: `${course.progress?.percentComplete || 0}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <span className="text-xs text-gray-400">
+                          Start Date: {course.enrollmentDate ? new Date(course.enrollmentDate).toLocaleDateString() : 'N/A'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          Last Accessed: {course.progress?.lastAccessed ? new Date(course.progress.lastAccessed).toLocaleDateString() : 'Never'}
+                        </span>
+                      </div>
+                      <div className="mt-3">
+                        <button
+                          onClick={() => handleViewCourse(course._id)}
+                          className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 rounded text-xs font-medium transition-colors flex items-center"
+                        >
+                          <Play className="w-3 h-3 mr-1" /> Continue Learning
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            {/* Skills Gained Section */}
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-medium text-white mb-4">Skills Gained</h3>
+              <div className="flex flex-wrap gap-2">
+                {learningStats.skillsGained && learningStats.skillsGained.length > 0 ? (
+                  learningStats.skillsGained.map((skill, index) => (
+                    <span 
+                      key={index} 
+                      className="bg-cyan-900/30 text-cyan-400 px-3 py-1 rounded-full text-sm flex items-center"
+                    >
+                      {skill}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-gray-400">No skills recorded yet.</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Study Time History */}
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-medium text-white mb-4">Study Time History</h3>
+              {learningStats.progressHistory && learningStats.progressHistory.length > 0 ? (
+                <div className="h-60 w-full">
+                  <div className="flex h-full items-end">
+                    {learningStats.progressHistory.map((day, index) => (
+                      <div key={index} className="flex flex-col items-center flex-1">
+                        <div 
+                          className="w-full max-w-[30px] bg-cyan-500 hover:bg-cyan-400 transition-all rounded-t" 
+                          style={{ 
+                            height: `${Math.min(day.hoursSpent * 15, 100)}%`,
+                            opacity: 0.7 + (index / (learningStats.progressHistory.length * 2))
+                          }}
+                        >
+                        </div>
+                        <span className="text-xs text-gray-400 mt-2 truncate w-full text-center">
+                          {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-400">No study history available.</p>
+              )}
+            </div>
+            
+            {/* Recommendations Section */}
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-medium text-white mb-4">Personalized Recommendations</h3>
+              <div className="space-y-3">
+                <div className="flex items-start p-3 border border-gray-700 rounded-lg">
+                  <div className="bg-green-900/30 p-2 rounded mr-3">
+                    <TrendingUp className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Increase Study Consistency</h4>
+                    <p className="text-gray-400 text-sm mt-1">Try to study at least 30 minutes every day to improve your learning streak.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start p-3 border border-gray-700 rounded-lg">
+                  <div className="bg-blue-900/30 p-2 rounded mr-3">
+                    <BookOpen className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Complete Advanced Mathematics</h4>
+                    <p className="text-gray-400 text-sm mt-1">You're 50% through this course. Keep going to unlock the next skill level!</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start p-3 border border-gray-700 rounded-lg">
+                  <div className="bg-purple-900/30 p-2 rounded mr-3">
+                    <Award className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Take Quiz Assessment</h4>
+                    <p className="text-gray-400 text-sm mt-1">Evaluate your progress by taking the assessment quiz for your completed courses.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      
       default:
         return null;
     }
@@ -967,6 +1472,16 @@ const UserDashboard = () => {
                 >
                   <BookOpen className="w-5 h-5 flex-shrink-0" />
                   {!sidebarCollapsed && <span>My Courses</span>}
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => setActiveTab('growth')}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'growth' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="Personal Growth Analysis"
+                >
+                  <TrendingUp className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>Growth Analysis</span>}
                 </button>
               </li>
               <li>
@@ -1070,6 +1585,7 @@ const UserDashboard = () => {
               {activeTab === 'notices' && <Bell className="mr-2 w-5 h-5" />}
               {activeTab === 'external' && <Globe className="mr-2 w-5 h-5" />}
               {activeTab === 'profile' && <User className="mr-2 w-5 h-5" />}
+              {activeTab === 'growth' && <TrendingUp className="mr-2 w-5 h-5" />}
               {activeTab}
             </h2>
             <div className="flex items-center">

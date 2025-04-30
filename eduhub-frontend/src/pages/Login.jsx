@@ -47,6 +47,9 @@ function LoginPage() {
       localStorage.setItem('isLoggedIn', 'true');
       
       // Store additional user info if available
+      if (response.data.user._id) {
+        localStorage.setItem('userId', response.data.user._id);
+      }
       if (response.data.user.university) {
         localStorage.setItem('userUniversity', response.data.user.university);
       }
