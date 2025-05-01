@@ -19,6 +19,14 @@ import JobDetails from "./pages/JobDetails";
 import CourseDetails from "./pages/CourseDetails";
 import Community from "./pages/Community";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AddNewCourse from "./pages/AddNewCourse";
+import AddNewInstructor from "./pages/AddNewInstructor";
+import ManageCommunity from "./pages/ManageCommunity";
+import AddNewEvent from "./pages/AddNewEvent";
+import ViewEvents from "./pages/ViewEvents";
+import EventDetail from "./pages/EventDetail";
+import EditEvent from "./pages/EditEvent";
+import SendEventInvitations from "./pages/SendEventInvitations";
 // import Navbar from "./components/Navbar";
 
 function App() {
@@ -35,6 +43,18 @@ function App() {
         <Route path="/job/:id" element={<JobDetails />} />
         <Route path="/course/:id" element={<CourseDetails />} />
         <Route path="/courses" element={<ViewCourses />} />
+        <Route path="/events" element={<ViewEvents />} />
+        <Route path="/events/:id" element={<EventDetail />} />
+        <Route path="/edit-event/:id" element={
+          <ProtectedRoute requiredRole="admin">
+            <EditEvent />
+          </ProtectedRoute>
+        } />
+        <Route path="/events/:id/send-invitations" element={
+          <ProtectedRoute requiredRole="admin">
+            <SendEventInvitations />
+          </ProtectedRoute>
+        } />
         {/* <Route path="/usrerdashboard" element={<UserDashboard />} /> */}
         {/* <Route path="/admindashboard" element={<AdminDashboard />} /> */}
 
@@ -104,6 +124,31 @@ function App() {
         <Route path="/manage-jobs" element={
           <ProtectedRoute requiredRole="admin">
             <ViewJobs />
+          </ProtectedRoute>
+        } />
+        <Route path="/add-course" element={
+          <ProtectedRoute requiredRole="admin">
+            <AddNewCourse />
+          </ProtectedRoute>
+        } />
+        <Route path="/add-event" element={
+          <ProtectedRoute requiredRole="admin">
+            <AddNewEvent />
+          </ProtectedRoute>
+        } />
+        <Route path="/manage-instructors" element={
+          <ProtectedRoute requiredRole="admin">
+            <AddNewInstructor />
+          </ProtectedRoute>
+        } />
+        <Route path="/manage-community" element={
+          <ProtectedRoute requiredRole="admin">
+            <ManageCommunity />
+          </ProtectedRoute>
+        } />
+        <Route path="/events/:id/send-invitations" element={
+          <ProtectedRoute requiredRole="admin">
+            <SendEventInvitations />
           </ProtectedRoute>
         } />
       </Routes>

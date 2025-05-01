@@ -35,6 +35,7 @@ import {
   Search
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import EventSection from '../components/EventSection';
 
 const Landing = () => {
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -180,6 +181,7 @@ const HomePage = ({ navigate, videoPlaying, setVideoPlaying }) => {
       <TeacherSection instructors={instructors} universities={universities} selectedUniversity={selectedUniversity} setSelectedUniversity={setSelectedUniversity} isLoading={isLoading} />
       <NoticeSection notices={notices} selectedUniversity={selectedUniversity} />
       <JobSection jobs={jobs} isLoading={isLoading} />
+      <EventSection />
       <CommunitySection />
       <VideoSection videoPlaying={videoPlaying} setVideoPlaying={setVideoPlaying} />
       <SupportSection />
@@ -1008,7 +1010,7 @@ const JobSection = ({ jobs, isLoading }) => {
   const [jobListings, setJobListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  
   useEffect(() => {
     const fetchJobs = async () => {
       setLoading(true);
@@ -1050,7 +1052,7 @@ const JobSection = ({ jobs, isLoading }) => {
         <Briefcase className="w-6 h-6 inline-block mr-2 text-green-400" />
         Available Job Opportunities
         <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></span>
-      </h2>
+        </h2>
       
       <p className="text-center text-gray-300 mb-12 max-w-3xl mx-auto">
         Find your dream job with our curated listings from top companies across Bangladesh. New opportunities added regularly.
@@ -1092,9 +1094,9 @@ const JobSection = ({ jobs, isLoading }) => {
                       'bg-gray-500/20 text-gray-400'
                     }`}>
                       {formatJobType(job.type)}
-                    </span>
-                  </div>
-                  
+                  </span>
+                </div>
+                
                   <div className="flex items-center mb-3 text-gray-400 text-sm">
                     <Building2 className="w-4 h-4 mr-2" /> {job.company}
                     <span className="mx-3">•</span>
@@ -1115,12 +1117,12 @@ const JobSection = ({ jobs, isLoading }) => {
           )}
           
           <div className="text-center">
-            <button 
+                  <button
               onClick={() => navigate('/jobs')}
               className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-transparent hover:from-green-600 hover:to-emerald-600 hover:scale-105 mx-auto"
             >
               Browse All Job Listings <Briefcase className="w-5 h-5 ml-2" />
-            </button>
+                  </button>
           </div>
         </>
       )}
@@ -1164,8 +1166,8 @@ const CommunitySection = () => {
                   <h4 className="text-lg font-semibold text-white">Study Groups</h4>
                   <p className="text-gray-400 text-sm">Join or create study groups for collaborative learning.</p>
                 </div>
-              </div>
-              
+                </div>
+                
               <div className="flex items-start">
                 <div className="bg-indigo-500/20 p-2 rounded-lg mr-4">
                   <HeartHandshake className="w-5 h-5 text-indigo-400" />
@@ -1189,8 +1191,8 @@ const CommunitySection = () => {
               className="w-full max-w-md mx-auto"
             />
           </div>
-        </div>
-        
+                      </div>
+                      
         <div className="mt-10 pt-10 border-t border-indigo-800/30">
           <h3 className="text-xl font-bold text-white mb-4 text-center">What Our Community Says</h3>
           
@@ -1206,8 +1208,8 @@ const CommunitySection = () => {
                   <p className="text-gray-400 text-xs">Computer Science Graduate</p>
                 </div>
               </div>
-            </div>
-            
+                      </div>
+                      
             <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
               <p className="text-gray-300 italic text-sm">
                 "The study groups here are incredibly supportive. We've been meeting virtually for over a year now, and it's been a game-changer for my academics."
@@ -1219,8 +1221,8 @@ const CommunitySection = () => {
                   <p className="text-gray-400 text-xs">Engineering Student</p>
                 </div>
               </div>
-            </div>
-            
+                      </div>
+                      
             <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
               <p className="text-gray-300 italic text-sm">
                 "I've learned so much from the discussion forums. The community is knowledgeable and always willing to help with tough problems."
@@ -1230,8 +1232,8 @@ const CommunitySection = () => {
                 <div>
                   <h5 className="text-white font-semibold">Amina Khan</h5>
                   <p className="text-gray-400 text-xs">Law Student</p>
-                </div>
-              </div>
+                        </div>
+                    </div>
             </div>
           </div>
         </div>
@@ -1266,12 +1268,12 @@ const VideoSection = ({ videoPlaying, setVideoPlaying }) => {
               allowFullScreen
               ></iframe>
             </div>
-            <button 
+                      <button 
               className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors"
               onClick={() => setVideoPlaying(false)}
-            >
+                      >
               <XCircle className="w-6 h-6 text-white" />
-            </button>
+                      </button>
           </>
         ) : (
           <div className="relative group cursor-pointer" onClick={() => setVideoPlaying(true)}>
@@ -1320,10 +1322,10 @@ const VideoSection = ({ videoPlaying, setVideoPlaying }) => {
             />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <PlayCircle className="w-8 h-8 text-white" />
-            </div>
+                    </div>
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
               <p className="text-white text-xs md:text-sm font-medium line-clamp-2">{video.title}</p>
-            </div>
+                  </div>
         </div>
         ))}
       </div>
@@ -1332,7 +1334,7 @@ const VideoSection = ({ videoPlaying, setVideoPlaying }) => {
         <button className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:scale-105 mx-auto">
           View All Videos <PlayCircle className="w-5 h-5 ml-2" />
         </button>
-      </div>
+                      </div>
     </section>
   );
 };
@@ -1358,9 +1360,9 @@ const StatsSection = () => {
             <div className="mb-4">{stat.icon}</div>
             <h3 className="font-['Inter'] text-2xl text-white">{stat.value}</h3>
             <p className="font-['Source_Sans_Pro'] text-gray-400">{stat.label}</p>
-          </div>
+                      </div>
         ))}
-      </div>
+                    </div>
     </section>
   );
 };
@@ -1379,7 +1381,7 @@ const SupportSection = () => {
         <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 rounded-xl p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
           <div className="bg-orange-500/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
             <BookOpen className="w-8 h-8 text-orange-400" />
-          </div>
+              </div>
           <h3 className="text-xl font-bold text-white mb-3">Academic Support</h3>
           <p className="text-gray-300 mb-4">
             Get assistance with coursework, research projects, and academic planning from our experienced tutors and advisors.
@@ -1388,13 +1390,13 @@ const SupportSection = () => {
             <li className="flex items-center text-gray-300">
               <div className="bg-orange-500/20 p-1 rounded-full mr-2">
                 <BadgeCheck className="w-4 h-4 text-orange-400" />
-              </div>
+            </div>
               <span className="text-sm">One-on-one tutoring sessions</span>
             </li>
             <li className="flex items-center text-gray-300">
               <div className="bg-orange-500/20 p-1 rounded-full mr-2">
                 <BadgeCheck className="w-4 h-4 text-orange-400" />
-              </div>
+        </div>
               <span className="text-sm">Research methodology guidance</span>
             </li>
             <li className="flex items-center text-gray-300">
@@ -1507,7 +1509,7 @@ const FeedbackSection = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  
+
   useEffect(() => {
     // Check authentication status
     const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -1677,8 +1679,8 @@ const CallToActionSection = ({ navigate }) => {
         <div className="text-center max-w-3xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
             Join Thousands of Students on EduHub Today
-          </h2>
-          
+      </h2>
+      
           <div className="flex flex-wrap justify-center gap-3 mb-10">
             <div className="bg-blue-500/20 text-blue-300 px-4 py-2 rounded-full text-sm font-medium">
               3,500+ Courses
@@ -1715,7 +1717,7 @@ const CallToActionSection = ({ navigate }) => {
             >
               Login to Your Account <Rocket className="w-5 h-5 ml-2" />
             </button>
-          </div>
+        </div>
           
           <div className="flex flex-wrap justify-center gap-8 mt-12">
             <div className="text-center">
@@ -1736,7 +1738,7 @@ const CallToActionSection = ({ navigate }) => {
                   alt="University Logo" 
                   className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
                 />
-              </div>
+        </div>
             </div>
             
             <div className="text-center">

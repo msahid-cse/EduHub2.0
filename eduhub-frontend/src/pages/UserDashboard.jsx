@@ -33,9 +33,13 @@ import {
   Activity,
   Award,
   Play,
-  MessageCircle
+  MessageCircle,
+  Briefcase,
+  CheckCircle,
+  Send
 } from 'lucide-react';
 import axios from 'axios';
+import { apiClient, instructorService } from '../api/apiClient';
 
 // Import Chart.js components
 import {
@@ -141,6 +145,18 @@ const UserDashboard = () => {
     proficiency: 50
   });
 
+  // Add new state for appointment scheduling
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const [appointmentData, setAppointmentData] = useState({
+    day: '',
+    time: '',
+    purpose: '',
+    message: ''
+  });
+  const [appointmentSuccess, setAppointmentSuccess] = useState(false);
+  const [appointmentError, setAppointmentError] = useState('');
+
   // Load user information and course data
   useEffect(() => {
     // Get user information from login data
@@ -197,52 +213,28 @@ const UserDashboard = () => {
           localStorage.setItem('userUniversity', response.data.university);
           localStorage.setItem('userDepartment', response.data.department);
           localStorage.setItem('userCountry', response.data.country);
-          localStorage.setItem('userPhone', response.data.phoneNumber || '');
-          localStorage.setItem('userBio', response.data.bio || '');
-          localStorage.setItem('userSkills', JSON.stringify(response.data.skills || []));
           
-          console.log('Profile data loaded from server');
+          // Load mock data with the user's university for proper filtering
+          loadMockDataExceptCourses(response.data.university);
+          
+          // Fetch the enrolled courses
+          fetchEnrolledCourses(token);
+          
+          // Fetch learning stats
+          fetchLearningStats(token);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
         
-        // Fall back to localStorage values if API call fails
-    const userUniversity = localStorage.getItem('userUniversity') || 'University of Technology';
-    const userCountry = localStorage.getItem('userCountry') || 'United States';
-    const userName = localStorage.getItem('userName') || 'John Doe';
-        const userBio = localStorage.getItem('userBio') || '';
-        const userDepartment = localStorage.getItem('userDepartment') || '';
-        const userPhone = localStorage.getItem('userPhone') || '';
-        const userSkills = JSON.parse(localStorage.getItem('userSkills') || '[]');
-
-    setUserInfo({
-      email: userEmail,
-      role: userRole,
-      university: userUniversity,
-      country: userCountry,
-          name: userName,
-          id: userId
-    });
-
-    // Initialize profile data
-    setProfileData(prevData => ({
-      ...prevData,
-      fullName: userName,
-      email: userEmail,
-      university: userUniversity,
-          bio: userBio,
-          department: userDepartment,
-          phoneNumber: userPhone,
-          skills: userSkills
-        }));
+        // Fallback to localStorage if API fails
+        const userUniversity = localStorage.getItem('userUniversity');
+        loadMockDataExceptCourses(userUniversity);
+        fetchEnrolledCourses(token);
       }
     };
-    
-    // Execute all data fetching functions
+
     fetchUserProfile();
-    fetchEnrolledCourses(token);
-    fetchLearningStats(token);
-    loadMockDataExceptCourses(localStorage.getItem('userUniversity') || 'University of Technology');
+    // ... existing code ...
   }, [navigate]);
 
   // Function to fetch enrolled courses
@@ -573,52 +565,59 @@ const UserDashboard = () => {
   const loadMockDataExceptCourses = (university) => {
     setIsLoading(true);
     
-    // Simulate API call with timeout
+    // Fetch faculty/instructors from database
+    const fetchInstructors = async () => {
+      try {
+        // Use instructorService to get instructors for the user's university
+        const response = await instructorService.getAllInstructors(university);
+        
+        // Format the instructor data to include availability for appointment scheduling
+        const formattedInstructors = response.data.map(instructor => {
+          // Generate random availability schedule based on instructor info
+          const availability = generateRandomAvailability();
+          
+          return {
+            id: instructor._id,
+            name: instructor.name,
+            title: instructor.position,
+            department: instructor.department,
+            email: instructor.email,
+            office: instructor.roomNo || `${instructor.department} Building ${instructor.deskNo || ''}`,
+            phone: instructor.contactInfo?.phone || 'Not provided',
+            officeHours: 'By appointment',
+            university: instructor.university,
+            availability: availability,
+            profilePicture: instructor.profilePicture || null
+          };
+        });
+        
+        setFaculty(formattedInstructors);
+      } catch (error) {
+        console.error("Error fetching instructors:", error);
+        setFaculty([]);
+      }
+    };
+    
+    // Generate random availability for scheduling demo purposes
+    const generateRandomAvailability = () => {
+      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      const times = ['9:00 AM', '10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'];
+      
+      // Pick 2-3 random days
+      const selectedDays = days.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 2) + 2);
+      
+      return selectedDays.map(day => {
+        // Pick 2-3 random time slots for each day
+        const slots = times.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 2) + 2);
+        return { day, slots };
+      });
+    };
+    
+    // Call fetch instructors
+    fetchInstructors();
+    
+    // Simulate API call with timeout for notices and external courses
     setTimeout(() => {
-      // Mock faculty data
-      setFaculty([
-        { 
-          id: 1, 
-          name: 'Dr. Smith', 
-          title: 'Professor of Computer Science',
-          department: 'Computer Science', 
-          email: 'smith@university.edu', 
-          office: 'CS Building 205',
-          phone: '+1 (555) 123-4567',
-          officeHours: 'Mon/Wed 1:00-3:00 PM'
-        },
-        { 
-          id: 2, 
-          name: 'Dr. Johnson', 
-          title: 'Associate Professor of Mathematics',
-          department: 'Mathematics', 
-          email: 'johnson@university.edu', 
-          office: 'Math Building 101',
-          phone: '+1 (555) 234-5678',
-          officeHours: 'Tue/Thu 10:00-12:00 PM'
-        },
-        { 
-          id: 3, 
-          name: 'Prof. Williams', 
-          title: 'Lecturer in English',
-          department: 'English', 
-          email: 'williams@university.edu', 
-          office: 'Arts Building 304',
-          phone: '+1 (555) 345-6789',
-          officeHours: 'By appointment'
-        },
-        { 
-          id: 4, 
-          name: 'Dr. Brown', 
-          title: 'Professor of Physics',
-          department: 'Physics', 
-          email: 'brown@university.edu', 
-          office: 'Science Building 412',
-          phone: '+1 (555) 456-7890',
-          officeHours: 'Mon/Wed/Fri 10:00-11:00 AM'
-        }
-      ]);
-
       // Mock notices
       setNotices([
         { 
@@ -654,7 +653,7 @@ const UserDashboard = () => {
           priority: 'Medium'
         }
       ]);
-
+      
       // Mock external courses
       setExternalCourses([
         { 
@@ -698,7 +697,7 @@ const UserDashboard = () => {
           rating: 4.6
         }
       ]);
-
+      
       setIsLoading(false);
     }, 1500);
   };
@@ -1323,6 +1322,98 @@ const UserDashboard = () => {
     }
   };
 
+  // Function to handle appointment scheduling
+  const handleScheduleAppointment = (faculty) => {
+    setSelectedFaculty(faculty);
+    setAppointmentData({
+      day: faculty.availability && faculty.availability.length > 0 ? faculty.availability[0].day : '',
+      time: faculty.availability && faculty.availability.length > 0 && faculty.availability[0].slots.length > 0 
+        ? faculty.availability[0].slots[0] : '',
+      purpose: '',
+      message: ''
+    });
+    setAppointmentSuccess(false);
+    setAppointmentError('');
+    setShowAppointmentModal(true);
+  };
+
+  // Function to handle sending appointment request
+  const handleSendAppointment = async () => {
+    if (!appointmentData.day || !appointmentData.time || !appointmentData.purpose) {
+      setAppointmentError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      // Log the appointment request
+      console.log('Sending appointment request to:', selectedFaculty);
+      console.log('Appointment data:', appointmentData);
+      
+      // Prepare email content
+      const emailTo = encodeURIComponent(selectedFaculty.email || 'msahid.cse@gmail.com'); // Test case
+      const emailSubject = encodeURIComponent(`Appointment Request: ${appointmentData.purpose}`);
+      
+      // Create detailed body with all appointment information
+      const emailBody = encodeURIComponent(
+        `Dear ${selectedFaculty.name} Sir,\n\n` +
+        `I would like to request an appointment with you for ${appointmentData.purpose}.\n\n` +
+        `Requested Date: ${appointmentData.day}\n` +
+        `Requested Time: ${appointmentData.time}\n\n` +
+        `${appointmentData.message ? 'Additional Message:\n' + appointmentData.message + '\n\n' : ''}` +
+        `Please let me know if this time works for you or if we need to find an alternative.\n\n` +
+        `Thank you,\n` +
+        `${userInfo?.name || 'Student'}\n` +
+        `${userInfo?.email || ''}\n` +
+        `${userInfo?.department ? 'Department: ' + userInfo.department : ''}\n` +
+        `${userInfo?.university ? 'University: ' + userInfo.university : ''}`
+      );
+      
+      // The most reliable format for Gmail compose URL
+      const gmailComposeUrl = `https://mail.google.com/mail/u/0/?to=${emailTo}&su=${emailSubject}&body=${emailBody}&tf=cm`;
+      
+      // Open in a new tab
+      window.open(gmailComposeUrl, '_blank');
+      
+      // Show success message
+      setAppointmentSuccess(true);
+      
+      // Reset form after successful submission
+      setTimeout(() => {
+        setShowAppointmentModal(false);
+        setAppointmentSuccess(false);
+        setAppointmentData({
+          day: '',
+          time: '',
+          purpose: '',
+          message: ''
+        });
+      }, 3000);
+    } catch (error) {
+      console.error('Error sending appointment request:', error);
+      setAppointmentError('Failed to send appointment request. Please try again.');
+    }
+  };
+
+  // Function to handle appointment data changes
+  const handleAppointmentChange = (e) => {
+    const { name, value } = e.target;
+    setAppointmentData({
+      ...appointmentData,
+      [name]: value
+    });
+  };
+
+  // Function to get available times based on selected day
+  const getAvailableTimesForDay = (day) => {
+    if (!selectedFaculty || !selectedFaculty.availability) return [];
+    
+    const daySchedule = selectedFaculty.availability.find(
+      schedule => schedule.day === day
+    );
+    
+    return daySchedule ? daySchedule.slots : [];
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -1615,6 +1706,8 @@ const UserDashboard = () => {
               </div>
             </div>
             
+
+            
             {filteredCourses.length === 0 ? (
               <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-8 text-center">
                 <BookOpen className="mx-auto w-12 h-12 text-gray-500 mb-4" />
@@ -1725,7 +1818,10 @@ const UserDashboard = () => {
         return (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-2xl font-bold text-white">Faculty Members</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Faculty Members</h2>
+                <p className="text-gray-400">Faculty from {userInfo?.university || 'your university'}</p>
+              </div>
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -1743,7 +1839,12 @@ const UserDashboard = () => {
                 <Users className="mx-auto w-12 h-12 text-gray-500 mb-4" />
                 <h3 className="text-xl font-medium text-gray-300">No faculty members found</h3>
                 <p className="text-gray-500 mt-2">
-                  {searchQuery ? 'Try a different search term' : 'No faculty information available'}
+                  {searchQuery 
+                    ? 'Try a different search term' 
+                    : userInfo?.university 
+                      ? `We couldn't find any faculty at ${userInfo.university}` 
+                      : 'No faculty information available'
+                  }
                 </p>
               </div>
             ) : (
@@ -1778,11 +1879,149 @@ const UserDashboard = () => {
                       </p>
                     </div>
                     
-                    <button className="mt-4 w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium transition-colors">
-                      Schedule Appointment
-                    </button>
+                    <div className="mt-4 flex space-x-2">
+                      <button 
+                        onClick={() => handleScheduleAppointment(member)}
+                        className="flex-1 px-3 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-sm font-medium transition-colors flex items-center justify-center"
+                      >
+                        <Calendar className="w-4 h-4 mr-1" /> Schedule
+                      </button>
+                      <button 
+                        onClick={() => handleSendEmail(member.email)}
+                        className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-sm font-medium transition-colors flex items-center justify-center"
+                      >
+                        <Mail className="w-4 h-4 mr-1" /> Email
+                      </button>
+                    </div>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {/* Appointment Scheduling Modal */}
+            {showAppointmentModal && selectedFaculty && (
+              <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                <div className="bg-gray-800 rounded-lg w-full max-w-md p-6 relative">
+                  <button 
+                    onClick={() => setShowAppointmentModal(false)}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                  >
+                    <X size={20} />
+                  </button>
+                  
+                  <h3 className="text-xl font-bold text-white mb-2">Schedule Appointment</h3>
+                  <p className="text-gray-400 mb-4">with {selectedFaculty.name}</p>
+                  
+                  {appointmentError && (
+                    <div className="bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4">
+                      {appointmentError}
+                    </div>
+                  )}
+                  
+                  {appointmentSuccess ? (
+                    <div className="bg-green-900/30 border border-green-700 text-green-400 px-4 py-3 rounded-lg mb-4">
+                      <div className="flex items-center">
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        <p>Appointment request sent successfully!</p>
+                      </div>
+                      <p className="mt-2 text-sm">
+                        An email has been sent to {selectedFaculty.name} with your request details.
+                        You will receive a confirmation when the faculty approves your appointment.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-gray-400 mb-1">Select Day</label>
+                        <select
+                          name="day"
+                          value={appointmentData.day}
+                          onChange={(e) => {
+                            handleAppointmentChange(e);
+                            // Reset time when day changes
+                            const availableTimes = getAvailableTimesForDay(e.target.value);
+                            setAppointmentData(prev => ({
+                              ...prev,
+                              time: availableTimes.length > 0 ? availableTimes[0] : ''
+                            }));
+                          }}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          required
+                        >
+                          <option value="">Select a day</option>
+                          {selectedFaculty.availability?.map((schedule, idx) => (
+                            <option key={idx} value={schedule.day}>
+                              {schedule.day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-gray-400 mb-1">Select Time</label>
+                        <select
+                          name="time"
+                          value={appointmentData.time}
+                          onChange={handleAppointmentChange}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          disabled={!appointmentData.day}
+                          required
+                        >
+                          <option value="">Select a time slot</option>
+                          {getAvailableTimesForDay(appointmentData.day).map((time, idx) => (
+                            <option key={idx} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-gray-400 mb-1">Purpose</label>
+                        <select
+                          name="purpose"
+                          value={appointmentData.purpose}
+                          onChange={handleAppointmentChange}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          required
+                        >
+                          <option value="">Select purpose</option>
+                          <option value="Academic Advice">Academic Advice</option>
+                          <option value="Course Inquiry">Course Inquiry</option>
+                          <option value="Research Discussion">Research Discussion</option>
+                          <option value="Career Guidance">Career Guidance</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-gray-400 mb-1">Message (Optional)</label>
+                        <textarea
+                          name="message"
+                          value={appointmentData.message}
+                          onChange={handleAppointmentChange}
+                          placeholder="Additional details about your appointment request..."
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-24 resize-none"
+                        ></textarea>
+                      </div>
+                      
+                      <div className="flex justify-end mt-6">
+                        <button
+                          onClick={() => setShowAppointmentModal(false)}
+                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-300 mr-2"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSendAppointment}
+                          className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium flex items-center"
+                        >
+                          <Send className="w-4 h-4 mr-2" /> Send Request
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1917,7 +2156,7 @@ const UserDashboard = () => {
                       </a>
                       <button className="text-gray-400 hover:text-white">
                         <Bookmark className="w-5 h-5" />
-                      </button>
+                        </button>
                     </div>
                   </div>
                 ))}
@@ -2422,6 +2661,32 @@ const UserDashboard = () => {
       
       default:
         return null;
+    }
+  };
+
+  // Function to handle sending direct email to faculty
+  const handleSendEmail = (facultyEmail) => {
+    try {
+      // Construct Gmail compose URL with proper parameters
+      const emailTo = encodeURIComponent(facultyEmail || 'msahid.cse@gmail.com'); // Test case email
+      const emailSubject = encodeURIComponent(`Query from ${userInfo?.name || 'a student'} (${userInfo?.university || ''})`);
+      const emailBody = encodeURIComponent(
+        `Dear Faculty Member sir,\n\n` +
+        `I'm a student from ${userInfo?.university || 'your university'} and I would like to inquire about...\n\n` +
+        `Best regards,\n` +
+        `${userInfo?.name || 'A student'}\n` +
+        `${userInfo?.email || ''}\n` +
+        `${userInfo?.department ? 'Department: ' + userInfo.department : ''}`
+      );
+      
+      // The most reliable format for Gmail compose URL
+      const gmailComposeUrl = `https://mail.google.com/mail/u/0/?to=${emailTo}&su=${emailSubject}&body=${emailBody}&tf=cm`;
+      
+      // Open in a new tab
+      window.open(gmailComposeUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Gmail compose:', error);
+      alert('Failed to open Gmail compose. Please try sending email manually.');
     }
   };
 

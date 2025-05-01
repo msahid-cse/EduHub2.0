@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import PropTypes from 'prop-types';
 import {
   Users,
   BookOpen,
@@ -51,7 +52,7 @@ const keyframes = `
   }
 `;
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ initialSection }) => {
   const navigate = useNavigate();
   
   // Utility function to safely render potentially problematic data types
@@ -71,7 +72,9 @@ const AdminDashboard = () => {
     feedback: 0,
     globalPosts: 0,
     instructors: 0,
-    events: 0
+    events: 0,
+    jobsApplied: 0,
+    eventHits: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState('');
@@ -168,6 +171,44 @@ const AdminDashboard = () => {
         hasErrors = true;
       }
       
+      // Fetch job applications data if not included in main stats
+      try {
+        if (!fallbackStats.jobsApplied) {
+          console.log('Fetching job applications data...');
+          const jobsAppliedResponse = await apiClient.get('/jobs/applications/count');
+          console.log('Jobs applied response:', jobsAppliedResponse.data);
+          if (jobsAppliedResponse.data && typeof jobsAppliedResponse.data.count === 'number') {
+            // Update stats with job applications count
+            setStats(prev => ({
+              ...prev,
+              jobsApplied: jobsAppliedResponse.data.count
+            }));
+          }
+        }
+      } catch (jobsAppliedError) {
+        console.error('Error fetching job applications count:', jobsAppliedError);
+        // Don't fail completely, just show 0
+      }
+      
+      // Fetch event hits data if not included in main stats
+      try {
+        if (!fallbackStats.eventHits) {
+          console.log('Fetching event hits data...');
+          const eventHitsResponse = await apiClient.get('/events/hits/count');
+          console.log('Event hits response:', eventHitsResponse.data);
+          if (eventHitsResponse.data && typeof eventHitsResponse.data.count === 'number') {
+            // Update stats with event hits count
+            setStats(prev => ({
+              ...prev,
+              eventHits: eventHitsResponse.data.count
+            }));
+          }
+        }
+      } catch (eventHitsError) {
+        console.error('Error fetching event hits count:', eventHitsError);
+        // Don't fail completely, just show 0
+      }
+      
       // Fetch recent jobs
       try {
         const jobsResponse = await apiClient.get('/jobs?limit=5');
@@ -260,10 +301,20 @@ const AdminDashboard = () => {
       return;
     }
     
+    // Set initial section if provided
+    if (initialSection) {
+      console.log('Initial section specified:', initialSection);
+      if (initialSection === 'instructors') {
+        setShowInstructorUploadSection(true);
+      } else if (initialSection === 'community') {
+        setShowCommunitySection(true);
+      }
+    }
+    
     // Fetch data if authentication checks pass
     fetchDashboardData();
     fetchFeedback('pending'); // Changed to pending to show only new feedback by default
-  }, [navigate]);
+  }, [navigate, initialSection]);
   
   // Fetch feedback based on filter
   const fetchFeedback = async (status = 'all', category = 'all') => {
@@ -641,7 +692,7 @@ const AdminDashboard = () => {
 
       <div className="container mx-auto p-6">
         {/* Stats Cards - First Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
           <div className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 p-6 rounded-lg border border-blue-700/50 shadow-lg">
             <div className="flex items-center mb-3">
               <Users className="h-7 w-7 text-blue-400 mr-3" />
@@ -665,6 +716,14 @@ const AdminDashboard = () => {
             </div>
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.jobs || 0}</p>
           </div>
+
+          <div className="bg-gradient-to-br from-red-600/20 to-red-800/20 p-6 rounded-lg border border-red-700/50 shadow-lg">
+            <div className="flex items-center mb-3">
+              <Send className="h-7 w-7 text-red-400 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-200">Jobs Applied</h3>
+            </div>
+            <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.jobsApplied || 0}</p>
+          </div>
           
           <div className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 p-6 rounded-lg border border-purple-700/50 shadow-lg">
             <div className="flex items-center mb-3">
@@ -676,7 +735,7 @@ const AdminDashboard = () => {
         </div>
         
         {/* Stats Cards - Second Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-gradient-to-br from-indigo-600/20 to-indigo-800/20 p-6 rounded-lg border border-indigo-700/50 shadow-lg">
             <div className="flex items-center mb-3">
               <Bell className="h-7 w-7 text-indigo-400 mr-3" />
@@ -699,7 +758,7 @@ const AdminDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-200">Community Posts</h3>
             </div>
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.globalPosts || 0}</p>
-            </div>
+          </div>
           
           <div className="bg-gradient-to-br from-orange-600/20 to-orange-800/20 p-6 rounded-lg border border-orange-700/50 shadow-lg">
             <div className="flex items-center mb-3">
@@ -707,6 +766,14 @@ const AdminDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-200">Events Hosted</h3>
             </div>
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.events || 0}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-800/20 p-6 rounded-lg border border-yellow-700/50 shadow-lg">
+            <div className="flex items-center mb-3">
+              <Heart className="h-7 w-7 text-yellow-400 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-200">Event Hits</h3>
+            </div>
+            <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.eventHits || 0}</p>
           </div>
         </div>
         
@@ -735,44 +802,73 @@ const AdminDashboard = () => {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-white">Quick Actions</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <Link to="/post-job" className="flex items-center p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors">
-              <Briefcase className="h-5 w-5 text-amber-400 mr-3" />
-              <span className="text-gray-200">Post New Job</span>
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+            <button
+              onClick={() => navigate('/post-job')}
+              className="flex items-center p-5 bg-gradient-to-br from-blue-800 to-blue-900 rounded-xl shadow-md hover:from-blue-700 hover:to-blue-800"
+            >
+              <Briefcase className="mr-3 text-blue-300" size={22} />
+              <span className="text-white font-medium">Post New Job</span>
+            </button>
             
-            <Link to="/post-notice" className="flex items-center p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors">
-              <Bell className="h-5 w-5 text-purple-400 mr-3" />
-              <span className="text-gray-200">Post New Notice</span>
-            </Link>
+            <button
+              onClick={() => navigate('/post-notice')}
+              className="flex items-center p-5 bg-gradient-to-br from-purple-800 to-purple-900 rounded-xl shadow-md hover:from-purple-700 hover:to-purple-800"
+            >
+              <Bell className="mr-3 text-purple-300" size={22} />
+              <span className="text-white font-medium">Post New Notice</span>
+            </button>
             
-            <Link to="/add-course" className="flex items-center p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors">
-              <BookOpen className="h-5 w-5 text-green-400 mr-3" />
-              <span className="text-gray-200">Add New Course</span>
-            </Link>
+            <button
+              onClick={() => navigate('/add-course')}
+              className="flex items-center p-5 bg-gradient-to-br from-teal-800 to-teal-900 rounded-xl shadow-md hover:from-teal-700 hover:to-teal-800"
+            >
+              <BookOpen className="mr-3 text-teal-300" size={22} />
+              <span className="text-white font-medium">Add New Course</span>
+            </button>
+            
+            <button
+              onClick={() => navigate('/manage-jobs')}
+              className="flex items-center p-5 bg-gradient-to-br from-amber-800 to-amber-900 rounded-xl shadow-md hover:from-amber-700 hover:to-amber-800"
+            >
+              <List className="mr-3 text-amber-300" size={22} />
+              <span className="text-white font-medium">View Applications</span>
+            </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={handleManageInstructors}
-              className="flex items-center p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors text-left"
+          {/* Second row of quick actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+            <Link
+              to="/manage-instructors"
+              className="flex items-center p-5 bg-gradient-to-br from-indigo-800 to-indigo-900 rounded-xl shadow-md hover:from-indigo-700 hover:to-indigo-800"
             >
-              <GraduationCap className="h-5 w-5 text-purple-400 mr-3" />
-              <span className="text-gray-200">Add New Instructor</span>
-            </button>
-            
-            <button 
-              onClick={handleManageCommunity} 
-              className="flex items-center p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors"
-            >
-              <Globe className="h-5 w-5 text-cyan-400 mr-3" />
-              <span className="text-gray-200">Manage Community</span>
-            </button>
-            
-            <Link to="/add-event" className="flex items-center p-3 bg-gray-700/50 hover:bg-gray-700 rounded-lg border border-gray-600 transition-colors">
-              <Calendar className="h-5 w-5 text-orange-400 mr-3" />
-              <span className="text-gray-200">Add New Event</span>
+              <GraduationCap className="mr-3 text-indigo-300" size={22} />
+              <span className="text-white font-medium">Add New Instructor</span>
             </Link>
+            
+            <Link
+              to="/manage-community"
+              className="flex items-center p-5 bg-gradient-to-br from-pink-800 to-pink-900 rounded-xl shadow-md hover:from-pink-700 hover:to-pink-800"
+            >
+              <MessageSquare className="mr-3 text-pink-300" size={22} />
+              <span className="text-white font-medium">Manage Community</span>
+            </Link>
+            
+            <Link
+              to="/add-event"
+              className="flex items-center p-5 bg-gradient-to-br from-green-800 to-green-900 rounded-xl shadow-md hover:from-green-700 hover:to-green-800"
+            >
+              <Calendar className="mr-3 text-green-300" size={22} />
+              <span className="text-white font-medium">Add New Event</span>
+            </Link>
+            
+            <button
+              onClick={() => navigate('/feedback')}
+              className="flex items-center p-5 bg-gradient-to-br from-rose-800 to-rose-900 rounded-xl shadow-md hover:from-rose-700 hover:to-rose-800"
+            >
+              <MessageCircle className="mr-3 text-rose-300" size={22} />
+              <span className="text-white font-medium">Manage Feedback</span>
+            </button>
           </div>
         </div>
 
@@ -1342,7 +1438,7 @@ const AdminDashboard = () => {
                     }`}>
                       {safeRender(selectedFeedback.status)}
                     </span>
-                        </div>
+                            </div>
                   <div className="text-sm grid grid-cols-2 gap-2">
                     <p className="text-gray-400">Email: <span className="text-white">{safeRender(selectedFeedback.userEmail || selectedFeedback.user?.email || 'N/A')}</span></p>
                     <p className="text-gray-400">Date: <span className="text-white">{formatDate(selectedFeedback.createdAt)}</span></p>
@@ -1482,6 +1578,16 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
+};
+
+// PropTypes
+AdminDashboard.propTypes = {
+  initialSection: PropTypes.oneOf(['instructors', 'community', null, undefined])
+};
+
+// Default props
+AdminDashboard.defaultProps = {
+  initialSection: null
 };
 
 export default AdminDashboard;
