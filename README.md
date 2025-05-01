@@ -1,73 +1,95 @@
 # EduHub 2.0
 
-EduHub is an educational platform that connects students, educators, and institutions, providing tools for skill development, resource sharing, and career growth.
+EduHub 2.0 is a comprehensive educational platform designed to provide students with tools for learning, skill development, and career advancement.
+
+## Recent Updates
+
+### API Client Refactoring
+- Created a centralized API client using axios to standardize API calls across the application
+- Added request/response interceptors for better error handling and token management
+- Organized API calls into service objects for better code organization
+
+### Growth Analysis Implementation
+- Implemented a fully functional Growth Analysis page with learning analytics visualizations
+- Added multiple chart types: line, bar, pie, and radar charts
+- Created statistics cards for key metrics like study hours, course completion, etc.
+- Added weekly goals tracking with progress bars
 
 ## Project Structure
 
-The project consists of two main parts:
+### Frontend
+- Built with React, Vite, and TailwindCSS
+- Uses Chart.js for data visualization
+- Responsive design for all devices
 
-- `eduhub-frontend`: A React application built with Vite and TailwindCSS
-- `eduhub-backend`: A Node.js API built with Express and MongoDB
+### Backend
+- Node.js and Express server
+- MongoDB database with Mongoose ODM
+- JWT-based authentication
+- Learning analytics tracking
 
 ## Features
 
-- User authentication (login/register)
-- Role-based access control (admin/user)
-- Course management
-- Job postings and applications
-- University notices
-- Skill development resources
-- CV builder
-- Growth analysis
+- User authentication and profile management
+- Course viewing and enrollment
+- Learning progress tracking
+- Personal growth analysis with visualizations
+- Job listings and applications
+- Notices and announcements
+- Skills development tracking
 
-## Prerequisites
+## Future Plans
 
-- Node.js (v16+)
-- MongoDB (local or Atlas)
-- Git
+1. **Real-time Notifications**
+   - Implement WebSocket-based notifications for course updates, new notices, etc.
 
-## Setup and Installation
+2. **Enhanced Learning Analytics**
+   - Add predictive analytics for course completion
+   - Implement study pattern recognition
 
-### Backend Setup
+3. **Community Features**
+   - Discussion forums for courses
+   - Peer-to-peer learning opportunities
 
-1. Navigate to the backend directory:
-   ```
-   cd eduhub-backend
-   ```
+4. **Offline Access**
+   - Implement service workers for offline access to course content
+   - Add content caching for improved performance
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+## Getting Started
 
-3. Create a `.env` file in the root of the backend directory with the following variables:
-   ```
-   PORT=5000
-   MONGODB_URL=mongodb://localhost:27017/eduhub
-   JWT_SECRET=your_jwt_secret_key_here
-   ```
+### Prerequisites
+- Node.js (v14+)
+- MongoDB
 
-4. Start the backend server:
-   ```
-   npm run dev
-   ```
+### Installation
 
-### Frontend Setup
+#### Backend
+```bash
+cd eduhub-backend
+npm install
+npm start
+```
 
-1. Navigate to the frontend directory:
-   ```
-   cd eduhub-frontend
-   ```
+#### Frontend
+```bash
+cd eduhub-frontend
+npm install
+npm run dev
+```
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+## Environment Variables
+Create a .env file in the backend directory with the following:
 
-3. Start the frontend development server:
-   ```
-   npm run dev
-   ```
+```
+MONGODB_URI=mongodb://localhost:27017/eduhub
+JWT_SECRET=your_jwt_secret
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_email_password
+```
+
+## Team
+
+This project is being developed as part of an Independent Design Project (IDP) course.
 
 ## Application Flow
 

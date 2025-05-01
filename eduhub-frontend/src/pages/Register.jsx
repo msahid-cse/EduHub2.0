@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
-import axios from 'axios';
+import { authService } from '../api/apiClient';
 
-// Set up axios defaults
-axios.defaults.baseURL = 'http://localhost:5000/api';
-axios.defaults.headers.post['Content-Type'] = 'application/json';
-axios.defaults.timeout = 10000; // 10 seconds timeout
+// Remove axios defaults that are now handled by our apiClient
 
 const Register = () => {
   const navigate = useNavigate();
@@ -185,78 +182,28 @@ const Register = () => {
       
       console.log('Submitting registration data:', { ...userData, password: '[HIDDEN]' });
       
-      // For development, we're skipping the actual API call for demo purposes
-      let mockResponse = null;
+      // Use authService instead of direct axios call
+      const response = await authService.register(userData);
+      console.log('Registration successful:', response.data);
       
-      try {
-        // Try to make the actual API call
-        const response = await axios.post('/auth/register', userData);
-        console.log('Registration successful:', response.data);
-        
-        // Store token for verification
-        localStorage.setItem('tempToken', response.data.token);
-        localStorage.setItem('tempEmail', response.data.user.email);
-        localStorage.setItem('userDepartment', departmentName);
-        
-        // For development environment, save verification code if provided
-        if (response.data.verificationCode) {
-          console.log('Development mode: Verification code received:', response.data.verificationCode);
-          localStorage.setItem('dev_verification_code', response.data.verificationCode);
-        }
-        
-        // Show verification screen
-        setShowVerification(true);
-        setVerificationCountdown(120); // 2 minutes countdown
-        setCanResend(false);
-      } catch (apiError) {
-        console.error('API error:', apiError);
-        
-        // If we couldn't reach the API, use mock data for development
-        if (apiError.message === 'Network Error' || !apiError.response) {
-          console.log('Using mock data for development');
-          
-          // Create mock response
-          mockResponse = {
-            token: 'mock-token-' + Date.now(),
-            user: { email },
-            verificationCode: '123456' // Development mock code
-          };
-          
-          // Store mock data
-          localStorage.setItem('tempToken', mockResponse.token);
-          localStorage.setItem('tempEmail', email);
-          localStorage.setItem('userDepartment', departmentName);
-          localStorage.setItem('dev_verification_code', mockResponse.verificationCode);
-          
-          // Show verification screen
-          setShowVerification(true);
-          setVerificationCountdown(120); // 2 minutes countdown
-          setCanResend(false);
-        } else {
-          // If it's a different kind of error, throw it to be caught by the outer catch
-          if (apiError.response?.data?.error) {
-            console.error('Server error details:', apiError.response.data.error);
-          }
-          throw apiError;
-        }
-      }
+      // Store token for verification
+      localStorage.setItem('tempToken', response.data.token);
+      localStorage.setItem('tempEmail', response.data.user.email);
+      localStorage.setItem('userDepartment', departmentName);
+      
+      // Show verification UI
+      setShowVerification(true);
+      setRegistrationSuccess(true);
+      setVerificationCountdown(120); // 2 minutes for resend
+      setCanResend(false);
     } catch (error) {
       console.error('Registration error:', error);
       let errorMessage = 'Registration failed. Please try again.';
       
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        errorMessage = error.response.data.message || 
-                       error.response.data.error || 
-                       `Server error: ${error.response.status}`;
-        console.error('Server response:', error.response.data);
-      } else if (error.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response from server. Please check your internet connection.';
-      } else {
-        // Something happened in setting up the request
-        errorMessage = error.message;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message === 'Network Error') {
+        errorMessage = 'Unable to connect to the server. Please check your internet connection.';
       }
       
       setError(errorMessage);
@@ -269,39 +216,32 @@ const Register = () => {
     e.preventDefault();
     setIsVerifying(true);
     setVerificationError('');
+    setVerificationSuccess('');
     
     try {
-      const response = await axios.post('/auth/verify-email', {
-        email: email,
+      const verificationData = {
+        email: localStorage.getItem('tempEmail'),
         verificationCode: verificationCode
-      });
+      };
       
-      // On successful verification
-      setRegistrationSuccess(true);
+      // Use authService instead of direct axios call
+      const response = await authService.verifyEmail(verificationData);
       
-      // Perform login
-      localStorage.setItem('token', localStorage.getItem('tempToken'));
-      localStorage.setItem('userEmail', email);
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userRole', 'user');
+      setVerificationSuccess('Email verification successful! Redirecting to login...');
       
-      // Clean up temp storage
+      // Clear temporary storage
       localStorage.removeItem('tempToken');
       localStorage.removeItem('tempEmail');
-      localStorage.removeItem('dev_verification_code');
       
+      // Redirect to login after a delay
       setTimeout(() => {
-        navigate('/userdashboard');
+        navigate('/login');
       }, 2000);
-      
     } catch (error) {
       console.error('Verification error:', error);
       let errorMessage = 'Verification failed. Please try again.';
       
-      if (error.response?.status === 400 && error.response?.data?.message === 'Verification code expired') {
-        errorMessage = 'Verification code has expired. Please request a new code.';
-        setCanResend(true);
-      } else if (error.response?.data?.message) {
+      if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
       
@@ -312,35 +252,31 @@ const Register = () => {
   };
 
   const handleResendCode = async () => {
-    setVerificationError('');
-    setVerificationSuccess('');
+    if (!canResend) return;
+    
     setCanResend(false);
+    setVerificationCountdown(120); // Reset countdown
+    setVerificationError('');
     
     try {
-      await axios.post('/auth/resend-verification', {
-        email: email
-      });
+      const email = localStorage.getItem('tempEmail');
       
-      setVerificationCountdown(120); // Reset countdown
-      setVerificationSuccess('Verification code resent successfully!');
+      // Use authService instead of direct axios call
+      await authService.resendVerification(email);
       
-      // Clear success message after 5 seconds
-      setTimeout(() => {
-        setVerificationSuccess('');
-      }, 5000);
+      setVerificationSuccess('Verification code resent! Please check your email.');
     } catch (error) {
       console.error('Resend error:', error);
-      setVerificationError(error.response?.data?.message || 'Failed to resend verification code. Please try again.');
-      setCanResend(true);
+      let errorMessage = 'Failed to resend verification code. Please try again.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      setVerificationError(errorMessage);
+      setCanResend(true); // Allow immediate retry on error
     }
   };
-
-  // Clean up any development verification codes when unmounting
-  useEffect(() => {
-    return () => {
-      localStorage.removeItem('dev_verification_code');
-    };
-  }, []);
 
   if (registrationSuccess) {
     return (

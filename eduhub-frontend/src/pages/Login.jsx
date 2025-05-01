@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import { authService } from '../api/apiClient';
 
 export default function App() {
   return (
@@ -31,22 +31,16 @@ function LoginPage() {
     setNeedsVerification(false);
     
     try {
-      // Call backend API for login
       console.log('Attempting login with:', { email: formData.email });
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
-        email: formData.email,
-        password: formData.password
-      });
+      const response = await authService.login(formData.email, formData.password);
       
       console.log('Login successful:', response.data);
       
-      // Store user info in localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('userEmail', response.data.user.email);
       localStorage.setItem('userRole', response.data.user.role);
       localStorage.setItem('isLoggedIn', 'true');
       
-      // Store additional user info if available
       if (response.data.user._id) {
         localStorage.setItem('userId', response.data.user._id);
       }
@@ -60,18 +54,15 @@ function LoginPage() {
         localStorage.setItem('userDepartment', response.data.user.department);
       }
       
-      // Redirect based on user role
       if (response.data.user.role === 'admin') {
         navigate('/admindashboard');
       } else {
-        // Check if we were redirected from another page
         const from = location.state?.from?.pathname || '/userdashboard';
         navigate(from);
       }
     } catch (error) {
       console.error('Login error:', error);
       
-      // Check if email needs verification
       if (error.response?.data?.needsVerification) {
         console.log('Email needs verification:', error.response.data);
         setNeedsVerification(true);
@@ -112,9 +103,7 @@ function LoginPage() {
   const handleResendVerification = async () => {
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/auth/resend-verification', {
-        email: verificationEmail
-      });
+      await authService.resendVerification(verificationEmail);
       setError('Verification code resent. Please check your email.');
       setNeedsVerification(false);
     } catch (error) {
@@ -152,7 +141,6 @@ function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Email Input Field */}
         <div className="mb-5">
           <label htmlFor="email" className="block mb-2 text-sm font-medium text-slate-300">
             Email Address
@@ -169,7 +157,6 @@ function LoginPage() {
           />
         </div>
 
-        {/* Password Input Field */}
         <div className="mb-5">
           <div className="flex justify-between items-center mb-2">
             <label htmlFor="password" className="block text-sm font-medium text-slate-300">
@@ -191,7 +178,6 @@ function LoginPage() {
           />
         </div>
 
-        {/* Remember Me Checkbox */}
         <div className="flex items-center mb-6">
           <input
             id="remember-me"
@@ -206,7 +192,6 @@ function LoginPage() {
           </label>
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={isLoading}
@@ -215,7 +200,6 @@ function LoginPage() {
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
 
-        {/* Admin Shortcut */}
         <div className="text-center mt-4">
           <button
             type="button"
@@ -226,7 +210,6 @@ function LoginPage() {
           </button>
         </div>
 
-        {/* Sign Up Link */}
         <p className="text-center text-sm text-slate-400 mt-8">
           Don't have an account?{' '}
           <NavLink to="/register" className="font-medium text-teal-400 hover:text-teal-300 transition duration-200">

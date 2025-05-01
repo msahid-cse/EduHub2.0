@@ -36,6 +36,38 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+// Import Chart.js components
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  Filler
+} from 'chart.js';
+import { Bar, Pie, Radar } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  Filler
+);
+
 const UserDashboard = () => {
   const location = useLocation();
   const [userInfo, setUserInfo] = useState(null);
@@ -78,7 +110,35 @@ const UserDashboard = () => {
     skillsGained: [],
     progressHistory: []
   });
+  const [studySession, setStudySession] = useState({
+    courseId: '',
+    hoursSpent: 0,
+    learningMode: 'video',
+    notes: ''
+  });
+  const [weeklyGoals, setWeeklyGoals] = useState({
+    studyHoursTarget: 0,
+    coursesCompletedTarget: 0
+  });
   const navigate = useNavigate();
+
+  // Inside the useState declarations, add these new state variables
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    verificationCode: ''
+  });
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // Add skill proficiency state
+  const [skillProficiency, setSkillProficiency] = useState({
+    skill: '',
+    proficiency: 50
+  });
 
   // Load user information and course data
   useEffect(() => {
@@ -94,44 +154,94 @@ const UserDashboard = () => {
       return;
     }
 
-    // Set default university if none found
-    const userUniversity = localStorage.getItem('userUniversity') || 'University of Technology';
-    const userCountry = localStorage.getItem('userCountry') || 'United States';
-    const userName = localStorage.getItem('userName') || 'John Doe';
-    const userBio = localStorage.getItem('userBio') || '';
-    const userDepartment = localStorage.getItem('userDepartment') || '';
-    const userPhone = localStorage.getItem('userPhone') || '';
-    const userSkills = JSON.parse(localStorage.getItem('userSkills') || '[]');
+    // Fetch user profile from backend
+    const fetchUserProfile = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/users/profile', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        
+        if (response.data) {
+          // Update the userInfo state
+          setUserInfo({
+            email: response.data.email,
+            role: response.data.role,
+            university: response.data.university,
+            country: response.data.country,
+            name: response.data.name,
+            id: response.data._id
+          });
+          
+          // Update profile data form
+          setProfileData({
+            fullName: response.data.name || '',
+            email: response.data.email || '',
+            phoneNumber: response.data.phoneNumber || '',
+            department: response.data.department || '',
+            university: response.data.university || '',
+            bio: response.data.bio || '',
+            skills: response.data.skills || [],
+            skillsMap: response.data.skillsMap || {},
+            github: response.data.github || '',
+            codeforces: response.data.codeforces || '',
+            linkedin: response.data.linkedin || '',
+            twitter: response.data.twitter || '',
+            profilePicture: response.data.profilePicture || null
+          });
+          
+          // Update localStorage for backwards compatibility
+          localStorage.setItem('userName', response.data.name);
+          localStorage.setItem('userUniversity', response.data.university);
+          localStorage.setItem('userDepartment', response.data.department);
+          localStorage.setItem('userCountry', response.data.country);
+          localStorage.setItem('userPhone', response.data.phoneNumber || '');
+          localStorage.setItem('userBio', response.data.bio || '');
+          localStorage.setItem('userSkills', JSON.stringify(response.data.skills || []));
+          
+          console.log('Profile data loaded from server');
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        
+        // Fall back to localStorage values if API call fails
+        const userUniversity = localStorage.getItem('userUniversity') || 'University of Technology';
+        const userCountry = localStorage.getItem('userCountry') || 'United States';
+        const userName = localStorage.getItem('userName') || 'John Doe';
+        const userBio = localStorage.getItem('userBio') || '';
+        const userDepartment = localStorage.getItem('userDepartment') || '';
+        const userPhone = localStorage.getItem('userPhone') || '';
+        const userSkills = JSON.parse(localStorage.getItem('userSkills') || '[]');
 
-    setUserInfo({
-      email: userEmail,
-      role: userRole,
-      university: userUniversity,
-      country: userCountry,
-      name: userName,
-      id: userId
-    });
+        setUserInfo({
+          email: userEmail,
+          role: userRole,
+          university: userUniversity,
+          country: userCountry,
+          name: userName,
+          id: userId
+        });
 
-    // Initialize profile data
-    setProfileData(prevData => ({
-      ...prevData,
-      fullName: userName,
-      email: userEmail,
-      university: userUniversity,
-      bio: userBio,
-      department: userDepartment,
-      phoneNumber: userPhone,
-      skills: userSkills
-    }));
-
-    // Fetch enrolled courses
+        // Initialize profile data
+        setProfileData(prevData => ({
+          ...prevData,
+          fullName: userName,
+          email: userEmail,
+          university: userUniversity,
+          bio: userBio,
+          department: userDepartment,
+          phoneNumber: userPhone,
+          skills: userSkills
+        }));
+      }
+    };
+    
+    // Execute all data fetching functions
+    fetchUserProfile();
     fetchEnrolledCourses(token);
-    
-    // Fetch learning stats
     fetchLearningStats(token);
-    
-    // Load mock data for other sections, but NOT for courses
-    loadMockDataExceptCourses(userUniversity);
+    loadMockDataExceptCourses(localStorage.getItem('userUniversity') || 'University of Technology');
   }, [navigate]);
 
   // Function to fetch enrolled courses
@@ -358,6 +468,9 @@ const UserDashboard = () => {
   // Function to fetch learning stats
   const fetchLearningStats = async (token) => {
     try {
+      // Show loading state
+      setIsLoading(true);
+      
       const response = await axios.get('http://localhost:5000/api/users/learning-stats', {
         headers: {
           Authorization: `Bearer ${token}`
@@ -365,27 +478,93 @@ const UserDashboard = () => {
       });
       
       if (response.data) {
+        console.log('Learning stats received:', response.data);
         setLearningStats(response.data);
       }
     } catch (error) {
       console.error('Error fetching learning stats:', error);
       
-      // Generate mock stats for development
-      setLearningStats({
-        totalHoursSpent: 24,
-        coursesCompleted: 2,
-        averageScore: 85,
-        streakDays: 5,
-        lastActiveDate: new Date().toISOString(),
-        skillsGained: ['JavaScript', 'React', 'Node.js'],
-        progressHistory: [
-          { date: '2023-01-01', hoursSpent: 1.5 },
-          { date: '2023-01-02', hoursSpent: 2.0 },
-          { date: '2023-01-03', hoursSpent: 1.0 },
-          { date: '2023-01-04', hoursSpent: 2.5 },
-          { date: '2023-01-05', hoursSpent: 3.0 }
-        ]
-      });
+      // We'll attempt to use locally stored progress data to generate stats
+      // if the backend call fails
+      try {
+        const courseProgress = JSON.parse(localStorage.getItem('courseProgress') || '{}');
+        const enrolledCourses = JSON.parse(localStorage.getItem('enrolledCourses') || '[]');
+        
+        // Calculate total completed courses
+        const completedCourses = Object.values(courseProgress).filter(
+          progress => progress.completed || progress.percentComplete >= 100
+        ).length;
+        
+        // Calculate average progress percentage
+        const progressValues = Object.values(courseProgress).map(p => p.percentComplete || 0);
+        const averageScore = progressValues.length > 0 
+          ? Math.round(progressValues.reduce((sum, val) => sum + val, 0) / progressValues.length) 
+          : 0;
+        
+        // Generate rich data for charts
+        setLearningStats({
+          totalHoursSpent: 24,
+          coursesCompleted: completedCourses || 2,
+          averageScore: averageScore || 85,
+          streakDays: 5,
+          lastActiveDate: new Date().toISOString(),
+          skillsGained: ['JavaScript', 'React', 'Node.js', 'UI/UX', 'Data Science'],
+          progressHistory: [
+            { date: '2023-06-01', hoursSpent: 1.5 },
+            { date: '2023-06-02', hoursSpent: 2.0 },
+            { date: '2023-06-03', hoursSpent: 1.0 },
+            { date: '2023-06-04', hoursSpent: 2.5 },
+            { date: '2023-06-05', hoursSpent: 3.0 },
+            { date: '2023-06-06', hoursSpent: 1.8 },
+            { date: '2023-06-07', hoursSpent: 2.2 }
+          ],
+          courseDistribution: {
+            academic: 60,
+            coCurricular: 40,
+            video: 70,
+            theory: 30
+          },
+          weeklyGoals: {
+            studyHours: {
+              target: 10,
+              achieved: 6
+            },
+            coursesCompleted: {
+              target: 2,
+              achieved: completedCourses || 1
+            }
+          }
+        });
+      } catch (localStorageError) {
+        console.error('Error creating stats from localStorage:', localStorageError);
+        setLearningStats({
+          totalHoursSpent: 0,
+          coursesCompleted: 0,
+          averageScore: 0,
+          streakDays: 0,
+          lastActiveDate: new Date().toISOString(),
+          skillsGained: [],
+          progressHistory: [],
+          courseDistribution: {
+            academic: 50,
+            coCurricular: 50,
+            video: 50,
+            theory: 50
+          },
+          weeklyGoals: {
+            studyHours: {
+              target: 10,
+              achieved: 0
+            },
+            coursesCompleted: {
+              target: 1,
+              achieved: 0
+            }
+          }
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -583,13 +762,34 @@ const UserDashboard = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Check file size - limit to 1MB
+      if (file.size > 1024 * 1024) {
+        alert('Image size should be less than 1MB');
+        return;
+      }
+      
+      // Check file type
+      if (!file.type.match('image.*')) {
+        alert('Please select an image file');
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onloadend = () => {
+        // Store image as base64 string
         setProfileData(prev => ({
           ...prev,
           profilePicture: reader.result
         }));
+        
+        console.log('Image loaded successfully');
       };
+      
+      reader.onerror = () => {
+        console.error('Error reading file');
+        alert('Error reading file. Please try again.');
+      };
+      
       reader.readAsDataURL(file);
     }
   };
@@ -604,54 +804,520 @@ const UserDashboard = () => {
         saveBtn.innerHTML = '<span class="animate-spin mr-2">⟳</span> Saving...';
       }
       
-      // Save to localStorage for demo purposes
-      localStorage.setItem('userName', profileData.fullName);
-      localStorage.setItem('userUniversity', profileData.university);
-      localStorage.setItem('userEmail', profileData.email);
-      localStorage.setItem('userBio', profileData.bio);
-      localStorage.setItem('userDepartment', profileData.department);
-      localStorage.setItem('userPhone', profileData.phoneNumber);
-      localStorage.setItem('userSkills', JSON.stringify(profileData.skills));
-      
-      // In a real application, you would send this data to your backend
-      // Simulating an API call with timeout
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock API call (in a real app, this would be a fetch/axios call)
-      // const response = await fetch('/api/user/profile', {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   },
-      //   body: JSON.stringify(profileData)
-      // });
-      
-      // Update the userInfo state
-      setUserInfo(prev => ({
-        ...prev,
-        name: profileData.fullName,
-        university: profileData.university,
-        email: profileData.email
-      }));
-      
-      // Reset button state
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<svg class="mr-2 w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H14L21 10V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 21V13H7V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3V8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Save Profile';
+      // Get token for authentication
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
       }
       
-      // Show success message
-      alert('Profile updated successfully!');
+      // Prepare the profile data for submission to backend
+      const profileDataToSubmit = {
+        name: profileData.fullName,
+        phoneNumber: profileData.phoneNumber,
+        department: profileData.department,
+        university: profileData.university,
+        bio: profileData.bio,
+        skills: profileData.skills,
+        skillsMap: profileData.skillsMap || {},
+        github: profileData.github,
+        codeforces: profileData.codeforces,
+        linkedin: profileData.linkedin,
+        twitter: profileData.twitter
+      };
+      
+      // Handle profile picture separately (potentially large)
+      if (profileData.profilePicture) {
+        // If the profile picture is a new upload (starts with data:image)
+        if (profileData.profilePicture.startsWith('data:image')) {
+          // Check if the base64 string is too large (>1MB after encoding)
+          const base64Length = profileData.profilePicture.length;
+          const fileSizeInBytes = (base64Length * 3) / 4 - (profileData.profilePicture.endsWith('==') ? 2 : 1);
+          const fileSizeInMB = fileSizeInBytes / (1024 * 1024);
+          
+          console.log(`Image size: ${fileSizeInMB.toFixed(2)}MB`);
+          
+          if (fileSizeInMB > 1) {
+            // Compress the image before sending if it's too large
+            alert('Compressing image for better upload performance...');
+            
+            // Create an image element to draw on canvas for compression
+            const img = new Image();
+            img.src = profileData.profilePicture;
+            
+            await new Promise((resolve, reject) => {
+              img.onload = () => {
+                // Create a canvas and get its context
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Calculate new dimensions (maintain aspect ratio)
+                let width = img.width;
+                let height = img.height;
+                const maxSize = 800; // Max dimension in pixels
+                
+                if (width > height && width > maxSize) {
+                  height = (height / width) * maxSize;
+                  width = maxSize;
+                } else if (height > maxSize) {
+                  width = (width / height) * maxSize;
+                  height = maxSize;
+                }
+                
+                // Set canvas dimensions and draw the resized image
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Get the compressed image as base64
+                const compressedImage = canvas.toDataURL('image/jpeg', 0.7); // Adjust quality (0.7 = 70%)
+                profileDataToSubmit.profilePicture = compressedImage;
+                
+                console.log('Image compressed successfully');
+                resolve();
+              };
+              
+              img.onerror = reject;
+            });
+          } else {
+            // Image is small enough, use as is
+            profileDataToSubmit.profilePicture = profileData.profilePicture;
+          }
+        } else {
+          // Not a new upload, just use the existing URL
+          profileDataToSubmit.profilePicture = profileData.profilePicture;
+        }
+      }
+      
+      console.log('Submitting profile data to server...');
+      
+      // Send data to backend with timeout and increased max content length
+      const response = await axios.put(
+        'http://localhost:5000/api/users/profile',
+        profileDataToSubmit,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          timeout: 30000, // 30 seconds timeout
+          maxContentLength: 5 * 1024 * 1024 // 5MB max content length
+        }
+      );
+      
+      if (response.data) {
+        console.log('Profile updated successfully with response:', response.data);
+        
+        // Update local storage with basic profile data for UI consistency
+        localStorage.setItem('userName', profileData.fullName);
+        localStorage.setItem('userUniversity', profileData.university);
+        localStorage.setItem('userDepartment', profileData.department);
+        localStorage.setItem('userPhone', profileData.phoneNumber);
+        localStorage.setItem('userBio', profileData.bio);
+        localStorage.setItem('userSkills', JSON.stringify(profileData.skills));
+        
+        // Update the userInfo state
+        setUserInfo(prev => ({
+          ...prev,
+          name: profileData.fullName,
+          university: profileData.university,
+          email: profileData.email
+        }));
+        
+        // Update the profile data with the response from the server
+        setProfileData(prevData => ({
+          ...prevData,
+          ...response.data,
+          fullName: response.data.name || prevData.fullName,
+          profilePicture: response.data.profilePicture || prevData.profilePicture,
+          skills: response.data.skills || prevData.skills,
+          skillsMap: response.data.skillsMap || prevData.skillsMap
+        }));
+        
+        // Success message
+        alert('Profile updated successfully!');
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('Failed to update profile. Please try again.');
       
-      // Reset button state on error
+      let errorMessage = 'Failed to update profile';
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        errorMessage += `: ${error.response.data?.message || error.response.statusText}`;
+        console.error('Error response data:', error.response.data);
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage += ': Network error. Please check your internet connection.';
+        console.error('No response received:', error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage += `: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      // Reset button state
       const saveBtn = document.getElementById('saveProfileBtn');
       if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<svg class="mr-2 w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H14L21 10V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 21V13H7V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3V8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Save Profile';
+      }
+    }
+  };
+
+  // Function to handle password data change
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Clear previous errors when typing
+    setPasswordError('');
+  };
+  
+  // Function to request verification code
+  const handleRequestVerificationCode = async () => {
+    try {
+      setIsLoading(true);
+      setPasswordError(''); // Clear any existing errors
+      
+      // Validate email is present
+      if (!profileData.email) {
+        setPasswordError('Email is required to request verification code.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Request verification code from the backend
+      const response = await axios.post(
+        'http://localhost:5000/api/users/request-verification',
+        { email: profileData.email },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      if (response.data) {
+        setVerificationSent(true);
+        
+        // Handle development test code
+        if (response.data.code) {
+          setPasswordSuccess(`For development: Your verification code is: ${response.data.code}. In production, this would be sent to your email.`);
+          // Auto-fill the verification code for testing
+          setPasswordData(prev => ({
+            ...prev,
+            verificationCode: response.data.code
+          }));
+        } else {
+          // Regular flow - verification code sent to email
+          setPasswordSuccess(`Verification code sent to ${profileData.email}. Please check your inbox and spam folder.`);
+          
+          // If we have a preview URL for the test email, provide a link
+          if (response.data.previewUrl) {
+            console.log('Email preview URL:', response.data.previewUrl);
+            // You can open this URL in a new window for testing
+            window.open(response.data.previewUrl, '_blank');
+          }
+        }
+        
+        // Clear success message after a few seconds
+        setTimeout(() => {
+          setPasswordSuccess('');
+        }, 10000);
+      }
+    } catch (error) {
+      console.error('Error requesting verification code:', error);
+      
+      // Improved error handling
+      if (error.response) {
+        setPasswordError(error.response.data?.message || 'Failed to request verification code.');
+      } else if (error.request) {
+        setPasswordError('No response from server. Please check your connection.');
+      } else {
+        setPasswordError('Failed to request verification code. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to change password
+  const handleChangePassword = async () => {
+    try {
+      setIsLoading(true);
+      setPasswordError('');
+      
+      // Validate all fields
+      if (!passwordData.currentPassword) {
+        setPasswordError('Current password is required.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!passwordData.newPassword) {
+        setPasswordError('New password is required.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError('New password and confirm password do not match.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!passwordData.verificationCode) {
+        setPasswordError('Verification code is required.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Request password change from the backend
+      const response = await axios.post(
+        'http://localhost:5000/api/users/change-password',
+        {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+          verificationCode: passwordData.verificationCode
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      if (response.data) {
+        // Reset form
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+          verificationCode: ''
+        });
+        
+        setVerificationSent(false);
+        setPasswordSuccess('Password changed successfully! You will be logged out in a moment...');
+        
+        // Log out and redirect after a short delay
+        setTimeout(() => {
+          handleLogout();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      // Improved error handling with more specific error messages
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        setPasswordError(error.response.data?.message || 'Server error. Please try again.');
+      } else if (error.request) {
+        // The request was made but no response was received
+        setPasswordError('No response from server. Please check your connection and try again.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        setPasswordError('An error occurred. Please try again later.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to handle skill proficiency change
+  const handleSkillProficiencyChange = (e) => {
+    const { name, value } = e.target;
+    setSkillProficiency(prev => ({
+      ...prev,
+      [name]: name === 'proficiency' ? parseInt(value, 10) : value
+    }));
+  };
+  
+  // Function to add skill with proficiency
+  const handleAddSkillWithProficiency = () => {
+    if (!skillProficiency.skill || skillProficiency.skill.trim() === '') {
+      alert('Please enter a skill name');
+      return;
+    }
+    
+    // Clean up the skill name
+    const cleanSkill = skillProficiency.skill.trim();
+    
+    // Check if skill already exists
+    if (profileData.skills.includes(cleanSkill)) {
+      // If skill exists, just update its proficiency
+      console.log(`Updating proficiency for existing skill: ${cleanSkill}`);
+      
+      setProfileData(prev => ({
+        ...prev,
+        skillsMap: {
+          ...(prev.skillsMap || {}),
+          [cleanSkill]: {
+            proficiency: skillProficiency.proficiency,
+            lastUpdated: new Date().toISOString()
+          }
+        }
+      }));
+      
+      // Reset skill input but keep the current skill selected
+      setSkillProficiency(prev => ({
+        ...prev,
+        skill: cleanSkill
+      }));
+      
+      // Show feedback
+      alert(`Updated proficiency for ${cleanSkill}`);
+    } else {
+      // Add new skill with proficiency
+      console.log(`Adding new skill with proficiency: ${cleanSkill} (${skillProficiency.proficiency}%)`);
+      
+      setProfileData(prev => ({
+        ...prev,
+        skills: [...prev.skills, cleanSkill],
+        // Create or update skillsMap with the new skill and its proficiency
+        skillsMap: {
+          ...(prev.skillsMap || {}),
+          [cleanSkill]: {
+            proficiency: skillProficiency.proficiency,
+            lastUpdated: new Date().toISOString()
+          }
+        }
+      }));
+      
+      // Reset skill input
+      setSkillProficiency({
+        skill: '',
+        proficiency: 50
+      });
+    }
+  };
+  
+  // Function to update skill proficiency
+  const updateSkillProficiency = (skill, newProficiency) => {
+    console.log(`Updating proficiency for ${skill} to ${newProficiency}%`);
+    
+    setProfileData(prev => ({
+      ...prev,
+      skillsMap: {
+        ...(prev.skillsMap || {}),
+        [skill]: {
+          proficiency: newProficiency,
+          lastUpdated: new Date().toISOString()
+        }
+      }
+    }));
+  };
+  
+  // Function to get proficiency for a skill
+  const getSkillProficiency = (skill) => {
+    return profileData.skillsMap?.[skill]?.proficiency || 0;
+  };
+
+  const handleStudySessionChange = (e) => {
+    const { name, value } = e.target;
+    setStudySession(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleLogStudySession = async () => {
+    try {
+      // Show loading state
+      const saveBtn = document.getElementById('logStudySessionBtn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="animate-spin mr-2">⟳</span> Logging...';
+      }
+      
+      // Log the study session
+      const response = await updateCourseProgress(studySession.courseId, {
+        lastAccessed: new Date().toISOString(),
+        percentComplete: 0
+      });
+      
+      if (response.success) {
+        // Update learning stats
+        setLearningStats(prevStats => ({
+          ...prevStats,
+          totalHoursSpent: prevStats.totalHoursSpent + studySession.hoursSpent,
+          skillsGained: [...prevStats.skillsGained, studySession.learningMode],
+          progressHistory: [...prevStats.progressHistory, { date: new Date().toISOString(), hoursSpent: studySession.hoursSpent }]
+        }));
+        
+        // Reset study session
+        setStudySession({
+          courseId: '',
+          hoursSpent: 0,
+          learningMode: 'video',
+          notes: ''
+        });
+        
+        // Show success message
+        alert('Study session logged successfully!');
+      } else {
+        alert(response.message);
+      }
+    } catch (error) {
+      console.error('Error logging study session:', error);
+      alert('Failed to log study session. Please try again.');
+    } finally {
+      // Reset button state
+      const saveBtn = document.getElementById('logStudySessionBtn');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Log Study Session';
+      }
+    }
+  };
+
+  const handleWeeklyGoalsChange = (e) => {
+    const { name, value } = e.target;
+    setWeeklyGoals(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleUpdateWeeklyGoals = async () => {
+    try {
+      // Show loading state
+      const saveBtn = document.getElementById('updateWeeklyGoalsBtn');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="animate-spin mr-2">⟳</span> Updating...';
+      }
+      
+      // Update weekly goals
+      const response = await axios.post(
+        'http://localhost:5000/api/users/update-weekly-goals',
+        weeklyGoals,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        // Show success message
+        alert('Weekly goals updated successfully!');
+      } else {
+        alert(response.data.message);
+      }
+    } catch (error) {
+      console.error('Error updating weekly goals:', error);
+      alert('Failed to update weekly goals. Please try again.');
+    } finally {
+      // Reset button state
+      const saveBtn = document.getElementById('updateWeeklyGoalsBtn');
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Update Goals';
       }
     }
   };
@@ -819,6 +1485,10 @@ const UserDashboard = () => {
                           className="bg-cyan-900/30 text-cyan-400 px-3 py-1 rounded-full text-sm flex items-center"
                         >
                           {skill}
+                          <span className="mx-1 text-gray-500">|</span>
+                          <span className="text-xs text-green-400">
+                            {profileData.skillsMap?.[skill] || 50}%
+                          </span>
                           <button 
                             onClick={() => handleRemoveSkill(skill)} 
                             className="ml-2 text-cyan-400 hover:text-cyan-300"
@@ -828,24 +1498,25 @@ const UserDashboard = () => {
                         </span>
                       ))}
                     </div>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
+                    <div className="flex flex-col gap-2">
+                      <div className="relative">
                         <input
                           type="text"
-                          value={skillInput}
-                          onChange={(e) => setSkillInput(e.target.value)}
+                          value={skillProficiency.skill}
+                          name="skill"
+                          onChange={handleSkillProficiencyChange}
                           className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                           placeholder="Add a skill (e.g., JavaScript, Python, Design)"
                         />
-                        {skillInput && (
+                        {skillProficiency.skill && (
                           <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
                             {suggestedSkills
-                              .filter(skill => skill.toLowerCase().includes(skillInput.toLowerCase()))
+                              .filter(skill => skill.toLowerCase().includes(skillProficiency.skill.toLowerCase()))
                               .map((skill, index) => (
                                 <div 
                                   key={index}
                                   className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
-                                  onClick={() => handleAddSkill(skill)}
+                                  onClick={() => setSkillProficiency(prev => ({ ...prev, skill }))}
                                 >
                                   {skill}
                                 </div>
@@ -854,11 +1525,31 @@ const UserDashboard = () => {
                           </div>
                         )}
                       </div>
+                      
+                      <div className="mt-2">
+                        <label className="text-sm text-gray-400 block mb-1">Proficiency Level: {skillProficiency.proficiency}%</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          name="proficiency"
+                          value={skillProficiency.proficiency}
+                          onChange={handleSkillProficiencyChange}
+                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Beginner</span>
+                          <span>Intermediate</span>
+                          <span>Expert</span>
+                        </div>
+                      </div>
+                      
                       <button 
-                        onClick={() => handleAddSkill(skillInput)}
-                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white"
+                        onClick={handleAddSkillWithProficiency}
+                        className="px-4 py-2 mt-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white self-start"
                       >
-                        Add
+                        Add Skill
                       </button>
                     </div>
                   </div>
@@ -871,6 +1562,23 @@ const UserDashboard = () => {
                       className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-32"
                       placeholder="Write a short bio about yourself..."
                     ></textarea>
+                  </div>
+
+                  <div className="space-y-4 mt-6">
+                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Security Settings</h3>
+                    <div className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
+                      <div>
+                        <h4 className="text-white font-medium">Change Password</h4>
+                        <p className="text-gray-400 text-sm mt-1">Update your password to keep your account secure</p>
+                      </div>
+                      <button 
+                        onClick={() => setShowPasswordModal(true)}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white text-sm flex items-center"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Change Password
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="flex justify-end mt-6">
@@ -1218,6 +1926,169 @@ const UserDashboard = () => {
         );
       
       case 'growth':
+        // Prepare chart data for study history
+        const studyHistoryData = {
+          labels: learningStats.progressHistory?.map(day => 
+            new Date(day.date).toLocaleDateString(undefined, { weekday: 'short' })
+          ) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [
+            {
+              label: 'Study Hours',
+              data: learningStats.progressHistory?.map(day => day.hoursSpent) || [1.5, 2.0, 1.0, 2.5, 3.0, 1.8, 2.2],
+              backgroundColor: 'rgba(56, 189, 248, 0.7)',
+              borderColor: 'rgba(56, 189, 248, 1)',
+              borderWidth: 2,
+              borderRadius: 5,
+            }
+          ],
+        };
+        
+        // Prepare chart data for course distribution
+        const courseDistributionData = {
+          labels: ['Academic', 'Co-Curricular', 'Video-based', 'Theory-based'],
+          datasets: [
+            {
+              data: [
+                learningStats.courseDistribution?.academic || 60, 
+                learningStats.courseDistribution?.coCurricular || 40,
+                learningStats.courseDistribution?.video || 70, 
+                learningStats.courseDistribution?.theory || 30
+              ],
+              backgroundColor: [
+                'rgba(56, 189, 248, 0.7)',
+                'rgba(251, 146, 60, 0.7)',
+                'rgba(52, 211, 153, 0.7)',
+                'rgba(167, 139, 250, 0.7)'
+              ],
+              borderColor: [
+                'rgba(56, 189, 248, 1)',
+                'rgba(251, 146, 60, 1)',
+                'rgba(52, 211, 153, 1)',
+                'rgba(167, 139, 250, 1)'
+              ],
+              borderWidth: 1,
+            },
+          ],
+        };
+        
+        // Skills radar chart data
+        const skillsData = {
+          labels: learningStats.skillsGained?.slice(0, 6) || ['JavaScript', 'React', 'Node.js', 'UI/UX', 'Data Science', 'Machine Learning'],
+          datasets: [
+            {
+              label: 'Skill Proficiency',
+              data: [80, 70, 75, 65, 60, 55].slice(0, learningStats.skillsGained?.length || 6),
+              backgroundColor: 'rgba(56, 189, 248, 0.2)',
+              borderColor: 'rgba(56, 189, 248, 1)',
+              borderWidth: 2,
+              pointBackgroundColor: 'rgba(56, 189, 248, 1)',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: 'rgba(56, 189, 248, 1)',
+            },
+          ],
+        };
+        
+        // Weekly goals progress data
+        const weeklyGoalsData = {
+          labels: ['Study Hours', 'Courses Completed'],
+          datasets: [
+            {
+              label: 'Target',
+              data: [
+                learningStats.weeklyGoals?.studyHours?.target || 10,
+                learningStats.weeklyGoals?.coursesCompleted?.target || 2
+              ],
+              backgroundColor: 'rgba(167, 139, 250, 0.5)',
+            },
+            {
+              label: 'Achieved',
+              data: [
+                learningStats.weeklyGoals?.studyHours?.achieved || 6,
+                learningStats.weeklyGoals?.coursesCompleted?.achieved || 1
+              ],
+              backgroundColor: 'rgba(56, 189, 248, 0.7)',
+            },
+          ],
+        };
+        
+        // Chart options
+        const barOptions = {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: 'rgba(255, 255, 255, 0.7)'
+              }
+            },
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)'
+              },
+              ticks: {
+                color: 'rgba(255, 255, 255, 0.7)'
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)'
+              },
+              ticks: {
+                color: 'rgba(255, 255, 255, 0.7)'
+              }
+            }
+          }
+        };
+        
+        const pieOptions = {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                color: 'rgba(255, 255, 255, 0.7)'
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${context.parsed}%`;
+                }
+              }
+            }
+          }
+        };
+        
+        const radarOptions = {
+          scales: {
+            r: {
+              angleLines: {
+                color: 'rgba(255, 255, 255, 0.2)'
+              },
+              grid: {
+                color: 'rgba(255, 255, 255, 0.2)'
+              },
+              pointLabels: {
+                color: 'rgba(255, 255, 255, 0.7)'
+              },
+              ticks: {
+                color: 'rgba(255, 255, 255, 0.7)',
+                backdropColor: 'transparent'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: 'rgba(255, 255, 255, 0.7)'
+              }
+            }
+          }
+        };
+      
         return (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -1231,17 +2102,20 @@ const UserDashboard = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-gray-400 text-sm">Total Learning Hours</p>
-                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.totalHoursSpent}</h3>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.totalHoursSpent || 0}</h3>
                   </div>
                   <div className="bg-cyan-900/30 p-2 rounded-lg">
                     <Clock className="w-8 h-8 text-cyan-400" />
                   </div>
                 </div>
                 <div className="mt-2">
-                  <p className="text-green-400 text-sm flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-1" /> 
-                    +2.5 hours this week
-                  </p>
+                  {learningStats.progressHistory && learningStats.progressHistory.length > 0 && (
+                    <p className="text-green-400 text-sm flex items-center">
+                      <TrendingUp className="w-4 h-4 mr-1" /> 
+                      +{(learningStats.progressHistory.reduce((sum, day) => 
+                        sum + (parseFloat(day.hoursSpent) || 0), 0)).toFixed(1)} hours this week
+                    </p>
+                  )}
                 </div>
               </div>
               
@@ -1249,7 +2123,7 @@ const UserDashboard = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-gray-400 text-sm">Courses Completed</p>
-                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.coursesCompleted}</h3>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.coursesCompleted || 0}</h3>
                   </div>
                   <div className="bg-cyan-900/30 p-2 rounded-lg">
                     <Award className="w-8 h-8 text-cyan-400" />
@@ -1257,7 +2131,7 @@ const UserDashboard = () => {
                 </div>
                 <div className="mt-2">
                   <p className="text-gray-300 text-sm">
-                    {Math.round((learningStats.coursesCompleted / courses.length) * 100) || 0}% completion rate
+                    {Math.round((learningStats.coursesCompleted / (courses.length || 1)) * 100) || 0}% completion rate
                   </p>
                 </div>
               </div>
@@ -1266,7 +2140,7 @@ const UserDashboard = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-gray-400 text-sm">Average Score</p>
-                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.averageScore}%</h3>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.averageScore || 0}%</h3>
                   </div>
                   <div className="bg-cyan-900/30 p-2 rounded-lg">
                     <Activity className="w-8 h-8 text-cyan-400" />
@@ -1275,7 +2149,7 @@ const UserDashboard = () => {
                 <div className="mt-2">
                   <p className="text-green-400 text-sm flex items-center">
                     <TrendingUp className="w-4 h-4 mr-1" /> 
-                    +5% improvement
+                    Improving consistently
                   </p>
                 </div>
               </div>
@@ -1284,7 +2158,7 @@ const UserDashboard = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-gray-400 text-sm">Learning Streak</p>
-                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.streakDays} days</h3>
+                    <h3 className="text-2xl font-bold text-cyan-400 mt-1">{learningStats.streakDays || 0} days</h3>
                   </div>
                   <div className="bg-cyan-900/30 p-2 rounded-lg">
                     <BarChart className="w-8 h-8 text-cyan-400" />
@@ -1294,6 +2168,44 @@ const UserDashboard = () => {
                   <p className="text-gray-300 text-sm">
                     Last active: {learningStats.lastActiveDate ? new Date(learningStats.lastActiveDate).toLocaleDateString() : 'Today'}
                   </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Advanced visualization section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Study time history chart */}
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                <h3 className="text-xl font-medium text-white mb-4">Weekly Study Time History</h3>
+                <div className="h-60 w-full">
+                  <Bar data={studyHistoryData} options={barOptions} />
+                </div>
+              </div>
+              
+              {/* Course distribution chart */}
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                <h3 className="text-xl font-medium text-white mb-4">Course Type Distribution</h3>
+                <div className="h-60 w-full flex items-center justify-center">
+                  <Pie data={courseDistributionData} options={pieOptions} />
+                </div>
+              </div>
+            </div>
+            
+            {/* Second row of visualization */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Skills radar chart */}
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                <h3 className="text-xl font-medium text-white mb-4">Skills Proficiency</h3>
+                <div className="h-60 w-full flex items-center justify-center">
+                  <Radar data={skillsData} options={radarOptions} />
+                </div>
+              </div>
+              
+              {/* Weekly goals progress */}
+              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                <h3 className="text-xl font-medium text-white mb-4">Weekly Goals Progress</h3>
+                <div className="h-60 w-full">
+                  <Bar data={weeklyGoalsData} options={barOptions} />
                 </div>
               </div>
             </div>
@@ -1388,38 +2300,110 @@ const UserDashboard = () => {
               )}
             </div>
             
-            {/* Recommendations Section */}
+            {/* Add a new study session section */}
             <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-              <h3 className="text-xl font-medium text-white mb-4">Personalized Recommendations</h3>
-              <div className="space-y-3">
-                <div className="flex items-start p-3 border border-gray-700 rounded-lg">
-                  <div className="bg-green-900/30 p-2 rounded mr-3">
-                    <TrendingUp className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Increase Study Consistency</h4>
-                    <p className="text-gray-400 text-sm mt-1">Try to study at least 30 minutes every day to improve your learning streak.</p>
-                  </div>
+              <h3 className="text-xl font-medium text-white mb-4">Log Study Session</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Select Course</label>
+                  <select 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white"
+                    value={studySession.courseId}
+                    name="courseId"
+                    onChange={handleStudySessionChange}
+                  >
+                    <option value="" disabled>Select a course</option>
+                    {courses.map(course => (
+                      <option key={course._id} value={course._id}>
+                        {course.title || course.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                
-                <div className="flex items-start p-3 border border-gray-700 rounded-lg">
-                  <div className="bg-blue-900/30 p-2 rounded mr-3">
-                    <BookOpen className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Complete Advanced Mathematics</h4>
-                    <p className="text-gray-400 text-sm mt-1">You're 50% through this course. Keep going to unlock the next skill level!</p>
-                  </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Hours Spent</label>
+                  <input 
+                    type="number" 
+                    min="0.5" 
+                    step="0.5" 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white"
+                    placeholder="Enter hours" 
+                    name="hoursSpent"
+                    value={studySession.hoursSpent}
+                    onChange={handleStudySessionChange}
+                  />
                 </div>
-                
-                <div className="flex items-start p-3 border border-gray-700 rounded-lg">
-                  <div className="bg-purple-900/30 p-2 rounded mr-3">
-                    <Award className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-white font-medium">Take Quiz Assessment</h4>
-                    <p className="text-gray-400 text-sm mt-1">Evaluate your progress by taking the assessment quiz for your completed courses.</p>
-                  </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Learning Mode</label>
+                  <select 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white"
+                    value={studySession.learningMode}
+                    name="learningMode"
+                    onChange={handleStudySessionChange}
+                  >
+                    <option value="video">Video Learning</option>
+                    <option value="theory">Theory Study</option>
+                    <option value="practice">Practice Session</option>
+                    <option value="assessment">Assessment/Quiz</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Study Notes (Optional)</label>
+                  <textarea 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white" 
+                    rows="3"
+                    placeholder="What did you learn in this session?"
+                    name="notes"
+                    value={studySession.notes}
+                    onChange={handleStudySessionChange}
+                  ></textarea>
+                </div>
+                <div className="md:col-span-2">
+                  <button 
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-md transition-colors"
+                    onClick={handleLogStudySession}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Logging...' : 'Log Study Session'}
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Set Weekly Goals Section */}
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-medium text-white mb-4">Set Weekly Goals</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Study Hours Target</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white"
+                    name="studyHoursTarget"
+                    value={weeklyGoals.studyHoursTarget}
+                    onChange={handleWeeklyGoalsChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Courses to Complete</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white"
+                    name="coursesCompletedTarget" 
+                    value={weeklyGoals.coursesCompletedTarget}
+                    onChange={handleWeeklyGoalsChange}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <button 
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-md transition-colors"
+                    onClick={handleUpdateWeeklyGoals}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Updating...' : 'Update Goals'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1605,6 +2589,132 @@ const UserDashboard = () => {
           {renderContent()}
         </main>
       </div>
+      
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => {
+                setShowPasswordModal(false);
+                setPasswordData({
+                  currentPassword: '',
+                  newPassword: '',
+                  confirmPassword: '',
+                  verificationCode: ''
+                });
+                setVerificationSent(false);
+                setPasswordError('');
+                setPasswordSuccess('');
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              disabled={isLoading}
+            >
+              <X size={20} />
+            </button>
+            
+            <h3 className="text-xl font-bold text-white mb-6">Change Password</h3>
+            
+            {passwordError && (
+              <div className="bg-red-900/30 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4">
+                {passwordError}
+              </div>
+            )}
+            
+            {passwordSuccess && (
+              <div className="bg-green-900/30 border border-green-700 text-green-400 px-4 py-3 rounded-lg mb-4">
+                {passwordSuccess}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-400 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  name="currentPassword"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Enter your current password"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-400 mb-1">New Password</label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Enter new password"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-gray-400 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Confirm new password"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-gray-400">Verification Code</label>
+                  <button
+                    type="button"
+                    onClick={handleRequestVerificationCode}
+                    className="text-sm text-cyan-400 hover:text-cyan-300 focus:outline-none"
+                    disabled={isLoading || !profileData.email}
+                  >
+                    {verificationSent ? 'Resend Code' : 'Request Code'}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  name="verificationCode"
+                  value={passwordData.verificationCode}
+                  onChange={handlePasswordChange}
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Enter verification code from email"
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1">A verification code will be sent to your email address for security.</p>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={handleChangePassword}
+                className="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-cyan-500 flex justify-center items-center"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  'Change Password'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

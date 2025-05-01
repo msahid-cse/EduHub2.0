@@ -1,5 +1,107 @@
 import User from '../models/User.js';
 import Course from '../models/Course.js';
+import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+
+// In-memory store for verification codes (in production, use Redis or similar)
+const verificationCodes = {};
+
+// Helper function to send verification email
+const sendVerificationEmail = async (email, verificationCode) => {
+  try {
+    console.log(`Attempting to send verification code ${verificationCode} to ${email}`);
+    
+    // Check if we have email configuration in environment variables
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+    
+    let transporter;
+    
+    if (emailUser && emailPass) {
+      // Use Gmail for sending emails
+      console.log(`Using Gmail with account: ${emailUser}`);
+      
+      transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: emailUser,
+          pass: emailPass
+        }
+      });
+    } else {
+      // Fall back to Ethereal for testing if no email credentials are provided
+      console.log('No email credentials found in .env, falling back to Ethereal test account');
+      
+      // For development - create a test account with Ethereal
+      let testAccount;
+      try {
+        testAccount = await nodemailer.createTestAccount();
+        console.log('Created test account:', testAccount.user);
+      } catch (testAccountError) {
+        console.error('Error creating test account:', testAccountError);
+        // Continue with default values if test account creation fails
+        testAccount = {
+          user: 'test@example.com',
+          pass: 'testpassword'
+        };
+      }
+      
+      // Create a transporter with Ethereal email for testing
+      transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+    }
+    
+    // Send mail with defined transport object
+    const info = await transporter.sendMail({
+      from: emailUser ? `"EduHub Support" <${emailUser}>` : '"EduHub Support" <support@eduhub.com>',
+      to: email,
+      subject: 'EduHub Password Change Verification Code',
+      text: `Your verification code for password change is: ${verificationCode}. This code will expire in 10 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #4a90e2;">EduHub Password Change</h2>
+          <p>You have requested to change your password. Please use the following verification code:</p>
+          <div style="background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 24px; letter-spacing: 5px; margin: 20px 0;">
+            <strong>${verificationCode}</strong>
+          </div>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you did not request this change, please ignore this email or contact support.</p>
+          <hr style="border: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #888; font-size: 12px;">EduHub Learning Platform</p>
+        </div>
+      `
+    });
+    
+    console.log('Verification email sent:', info.messageId);
+    
+    // Only for Ethereal test accounts
+    const previewUrl = info.messageId.includes('ethereal') ? 
+      nodemailer.getTestMessageUrl(info) : null;
+    
+    if (previewUrl) {
+      console.log('Preview URL:', previewUrl);
+    }
+    
+    return {
+      success: true,
+      previewUrl: previewUrl
+    };
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
 
 // Get user profile
 export const getUserProfile = async (req, res) => {
@@ -20,6 +122,8 @@ export const getUserProfile = async (req, res) => {
 // Update user profile
 export const updateUserProfile = async (req, res) => {
   try {
+    console.log('Profile update request received for user:', req.user.userId);
+    
     const {
       name,
       phoneNumber,
@@ -27,32 +131,242 @@ export const updateUserProfile = async (req, res) => {
       university,
       bio,
       skills,
+      skillsMap,
       github,
+      codeforces,
       linkedin,
-      twitter
+      twitter,
+      profilePicture
     } = req.body;
     
-    const userFields = {};
-    if (name) userFields.name = name;
-    if (phoneNumber) userFields.phoneNumber = phoneNumber;
-    if (department) userFields.department = department;
-    if (university) userFields.university = university;
-    if (bio) userFields.bio = bio;
-    if (skills) userFields.skills = skills;
-    if (github) userFields.github = github;
-    if (linkedin) userFields.linkedin = linkedin;
-    if (twitter) userFields.twitter = twitter;
+    // Find the current user to get existing data
+    const existingUser = await User.findById(req.user.userId);
+    if (!existingUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     
+    // Create userFields object with existing values as fallbacks
+    const userFields = {
+      name: name || existingUser.name,
+      phoneNumber: phoneNumber || existingUser.phoneNumber,
+      department: department || existingUser.department,
+      university: university || existingUser.university,
+      bio: bio || existingUser.bio,
+      github: github || existingUser.github,
+      codeforces: codeforces || existingUser.codeforces,
+      linkedin: linkedin || existingUser.linkedin,
+      twitter: twitter || existingUser.twitter
+    };
+    
+    // Handle skills array and skillsMap separately to ensure data integrity
+    if (skills && Array.isArray(skills)) {
+      userFields.skills = skills;
+      console.log(`Updating ${skills.length} skills for user`);
+    }
+    
+    if (skillsMap && typeof skillsMap === 'object') {
+      // Merge with existing skillsMap if it exists
+      userFields.skillsMap = {
+        ...(existingUser.skillsMap || {}),
+        ...skillsMap
+      };
+      console.log('Updating skills proficiency map');
+    }
+    
+    // Handle profile picture - check if it's a new base64 image or an existing URL
+    if (profilePicture) {
+      // If it's a new base64 image
+      if (profilePicture.startsWith('data:image')) {
+        console.log('New profile picture uploaded (base64)');
+        userFields.profilePicture = profilePicture;
+      } else {
+        // Keep existing profile picture URL
+        console.log('Using existing profile picture URL');
+        userFields.profilePicture = profilePicture;
+      }
+    }
+    
+    console.log('Updating user profile with fields:', Object.keys(userFields));
+    
+    // Update user with the new fields
     const user = await User.findByIdAndUpdate(
       req.user.userId,
       { $set: userFields },
       { new: true }
     ).select('-password');
     
+    if (!user) {
+      return res.status(404).json({ message: 'User not found after update' });
+    }
+    
+    console.log('User profile updated successfully');
     res.status(200).json(user);
   } catch (error) {
     console.error('Error updating user profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    
+    // Provide more specific error messages
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        details: error.message,
+        errors: error.errors 
+      });
+    } else if (error.name === 'MongoError' || error.name === 'MongoServerError') {
+      return res.status(500).json({ 
+        message: 'Database error', 
+        details: error.message 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error updating profile', 
+      details: error.message 
+    });
+  }
+};
+
+// Request verification code for password change
+export const requestVerificationCode = async (req, res) => {
+  try {
+    console.log('Verification code request received');
+    const { email } = req.body;
+    
+    // Verify the provided email matches the authenticated user's email
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    if (user.email !== email) {
+      console.log('Email mismatch:', { provided: email, userEmail: user.email });
+      return res.status(400).json({ message: 'Email does not match your account email' });
+    }
+    
+    console.log('User verification successful:', { userId: user._id, email: user.email });
+    
+    // Generate a random 6-digit code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('Generated verification code:', verificationCode);
+    
+    // Store the code with an expiration time (10 minutes)
+    verificationCodes[user._id] = {
+      code: verificationCode,
+      expiresAt: Date.now() + 600000 // 10 minutes in milliseconds
+    };
+    
+    // Try to send verification email, but don't fail if it doesn't work
+    const emailResult = await sendVerificationEmail(email, verificationCode);
+    
+    if (!emailResult.success) {
+      console.log('Email sending failed, but proceeding with verification code storage');
+      // For development purposes only, include the code in the response
+      // REMOVE THIS IN PRODUCTION!
+      return res.status(200).json({ 
+        message: 'Email service unavailable. For testing purposes, your verification code is: ' + verificationCode,
+        note: 'In production, this code would only be sent via email',
+        code: verificationCode // REMOVE IN PRODUCTION
+      });
+    }
+    
+    console.log('Verification code sent successfully');
+    res.status(200).json({ 
+      message: 'Verification code sent to your email',
+      previewUrl: emailResult.previewUrl || null
+    });
+  } catch (error) {
+    console.error('Error requesting verification code:', error);
+    res.status(500).json({ 
+      message: 'Server error processing verification code request', 
+      error: error.message 
+    });
+  }
+};
+
+// Change password
+export const changePassword = async (req, res) => {
+  try {
+    console.log('Change password request received:', { userId: req.user.userId });
+    const { currentPassword, newPassword, verificationCode } = req.body;
+    
+    // Input validation
+    if (!currentPassword || !newPassword || !verificationCode) {
+      console.log('Missing required fields');
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      console.log('New password too short');
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+    
+    // Find the user
+    const user = await User.findById(req.user.userId);
+    
+    if (!user) {
+      console.log('User not found');
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    console.log('User found:', { userId: user._id.toString() });
+    
+    // Verify current password
+    try {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      
+      if (!isMatch) {
+        console.log('Current password is incorrect');
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+      
+      console.log('Current password verified successfully');
+    } catch (bcryptError) {
+      console.error('bcrypt error:', bcryptError);
+      return res.status(500).json({ message: 'Error verifying password', error: bcryptError.message });
+    }
+    
+    // Verify the verification code
+    const storedVerification = verificationCodes[user._id];
+    
+    if (!storedVerification) {
+      console.log('Verification code not found');
+      return res.status(400).json({ message: 'Verification code not found. Please request a new one.' });
+    }
+    
+    if (Date.now() > storedVerification.expiresAt) {
+      // Remove expired code
+      delete verificationCodes[user._id];
+      console.log('Verification code has expired');
+      return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
+    }
+    
+    if (storedVerification.code !== verificationCode) {
+      console.log('Invalid verification code', { provided: verificationCode, expected: storedVerification.code });
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+    
+    console.log('Verification code valid, updating password');
+    
+    // All checks passed, update the password
+    try {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
+      
+      await user.save();
+      
+      // Remove the used verification code
+      delete verificationCodes[user._id];
+      
+      console.log('Password changed successfully');
+      res.status(200).json({ message: 'Password changed successfully', requireRelogin: true });
+    } catch (passwordError) {
+      console.error('Error updating password:', passwordError);
+      return res.status(500).json({ message: 'Error updating password', error: passwordError.message });
+    }
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

@@ -56,7 +56,8 @@ const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(morgan("tiny"));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors());
 
 // Serve static files
