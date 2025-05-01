@@ -512,7 +512,7 @@ const Community = () => {
                     </div>
                     
                     {/* Post Content */}
-                    <div className="p-4">
+              <div className="p-4">
                       <p className="whitespace-pre-wrap">{post.content}</p>
                       {post.media && (
                         <img 
@@ -729,10 +729,10 @@ const Community = () => {
                                 <p className="text-xs font-medium">{comment.userName}</p>
                                 <p className="text-sm mt-1">{comment.content}</p>
                                 <p className="text-xs text-gray-400 mt-1">{formatDate(comment.createdAt)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+              </div>
+            </div>
+          ))}
+        </div>
                       </div>
                     )}
                     
@@ -855,8 +855,8 @@ const Community = () => {
                                   <div className="mt-2 p-2 bg-black/20 rounded-md">
                                     <a 
                                       href={message.attachment.fileUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
+                target="_blank"
+                rel="noopener noreferrer"
                                       className="flex items-center text-blue-300 hover:text-blue-400 transition-colors"
                                       download
                                     >

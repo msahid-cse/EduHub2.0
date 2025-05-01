@@ -65,27 +65,27 @@ EduHub 2.0 is a comprehensive educational platform designed to provide students 
 
 #### Backend
 ```bash
-cd eduhub-backend
+   cd eduhub-backend
 npm install
 npm start
-```
+   ```
 
 #### Frontend
 ```bash
 cd eduhub-frontend
-npm install
-npm run dev
-```
+   npm install
+   npm run dev
+   ```
 
 ## Environment Variables
 Create a .env file in the backend directory with the following:
 
-```
+   ```
 MONGODB_URI=mongodb://localhost:27017/eduhub
 JWT_SECRET=your_jwt_secret
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_email_password
-```
+   ```
 
 ## Team
 

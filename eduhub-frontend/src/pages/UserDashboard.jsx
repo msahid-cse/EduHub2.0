@@ -207,29 +207,29 @@ const UserDashboard = () => {
         console.error('Error fetching user profile:', error);
         
         // Fall back to localStorage values if API call fails
-        const userUniversity = localStorage.getItem('userUniversity') || 'University of Technology';
-        const userCountry = localStorage.getItem('userCountry') || 'United States';
-        const userName = localStorage.getItem('userName') || 'John Doe';
+    const userUniversity = localStorage.getItem('userUniversity') || 'University of Technology';
+    const userCountry = localStorage.getItem('userCountry') || 'United States';
+    const userName = localStorage.getItem('userName') || 'John Doe';
         const userBio = localStorage.getItem('userBio') || '';
         const userDepartment = localStorage.getItem('userDepartment') || '';
         const userPhone = localStorage.getItem('userPhone') || '';
         const userSkills = JSON.parse(localStorage.getItem('userSkills') || '[]');
 
-        setUserInfo({
-          email: userEmail,
-          role: userRole,
-          university: userUniversity,
-          country: userCountry,
+    setUserInfo({
+      email: userEmail,
+      role: userRole,
+      university: userUniversity,
+      country: userCountry,
           name: userName,
           id: userId
-        });
+    });
 
-        // Initialize profile data
-        setProfileData(prevData => ({
-          ...prevData,
-          fullName: userName,
-          email: userEmail,
-          university: userUniversity,
+    // Initialize profile data
+    setProfileData(prevData => ({
+      ...prevData,
+      fullName: userName,
+      email: userEmail,
+      university: userUniversity,
           bio: userBio,
           department: userDepartment,
           phoneNumber: userPhone,
@@ -341,8 +341,8 @@ const UserDashboard = () => {
         setCourses(mockCourses);
       } else {
         // Fall back to mock data if no locally stored enrolled courses
-        setCourses([
-          { 
+      setCourses([
+        { 
             _id: 'mock1',
             title: 'Introduction to Computer Science',
             courseType: 'academic',
@@ -909,17 +909,17 @@ const UserDashboard = () => {
         console.log('Profile updated successfully with response:', response.data);
         
         // Update local storage with basic profile data for UI consistency
-        localStorage.setItem('userName', profileData.fullName);
-        localStorage.setItem('userUniversity', profileData.university);
+    localStorage.setItem('userName', profileData.fullName);
+    localStorage.setItem('userUniversity', profileData.university);
         localStorage.setItem('userDepartment', profileData.department);
         localStorage.setItem('userPhone', profileData.phoneNumber);
         localStorage.setItem('userBio', profileData.bio);
         localStorage.setItem('userSkills', JSON.stringify(profileData.skills));
-        
-        // Update the userInfo state
-        setUserInfo(prev => ({
-          ...prev,
-          name: profileData.fullName,
+    
+    // Update the userInfo state
+    setUserInfo(prev => ({
+      ...prev,
+      name: profileData.fullName,
           university: profileData.university,
           email: profileData.email
         }));
@@ -935,7 +935,7 @@ const UserDashboard = () => {
         }));
         
         // Success message
-        alert('Profile updated successfully!');
+    alert('Profile updated successfully!');
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -1652,7 +1652,7 @@ const UserDashboard = () => {
                               ? new Date(course.progress.lastAccessed).toLocaleDateString() 
                               : 'Never'}
                           </span>
-                        </div>
+                      </div>
                         <div className="h-1 w-full bg-gray-700">
                           <div 
                             className="h-1 bg-cyan-500" 
@@ -1677,7 +1677,7 @@ const UserDashboard = () => {
                             : 'bg-amber-900/80 text-amber-300'
                         }`}>
                           {course.courseSegment === 'video' ? 'Video' : 'Theory'}
-                        </span>
+                      </span>
                       </div>
                     </div>
                     
@@ -1688,11 +1688,11 @@ const UserDashboard = () => {
                       
                       <div className="flex items-center mt-2 text-gray-300">
                         <GraduationCap className="inline mr-2 w-4 h-4" /> {course.instructor}
-                      </div>
-                      
+                    </div>
+                    
                       <p className="text-gray-400 mt-3 line-clamp-2">{course.description}</p>
-                      
-                      <div className="mt-4 flex space-x-3">
+                    
+                    <div className="mt-4 flex space-x-3">
                         <button 
                           onClick={() => handleViewCourse(course._id)}
                           className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-sm font-medium transition-colors flex-grow flex items-center justify-center"
@@ -1706,7 +1706,7 @@ const UserDashboard = () => {
                               {course.courseSegment === 'video' ? 'Watch Course' : 'View Materials'}
                             </>
                           )}
-                        </button>
+                      </button>
                         {course.progress?.percentComplete === 100 && (
                           <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-md text-sm flex items-center">
                             Completed
@@ -2443,7 +2443,7 @@ const UserDashboard = () => {
               <h1 className="text-xl font-bold text-white flex items-center truncate">
                 <GraduationCap className="w-7 h-7 mr-2 text-cyan-400 flex-shrink-0" />
                 <span className="truncate">EduHub</span>
-              </h1>
+            </h1>
             )}
             {sidebarCollapsed && (
               <GraduationCap className="w-7 h-7 text-cyan-400 mx-auto" />
@@ -2533,9 +2533,9 @@ const UserDashboard = () => {
             <div className="px-3 py-4 mt-8">
               <div className="border-t border-gray-800 pt-4">
                 {!sidebarCollapsed && (
-                  <h3 className="text-gray-500 uppercase text-xs font-semibold px-3 mb-2">
-                    Your Account
-                  </h3>
+                <h3 className="text-gray-500 uppercase text-xs font-semibold px-3 mb-2">
+                  Your Account
+                </h3>
                 )}
                 <ul className="space-y-1">
                   <li>
@@ -2569,10 +2569,10 @@ const UserDashboard = () => {
                 <User className="w-5 h-5" />
               </div>
               {!sidebarCollapsed && (
-                <div className="ml-3 overflow-hidden">
-                  <p className="text-sm font-medium text-white truncate">{userInfo?.email || 'User'}</p>
-                  <p className="text-xs text-gray-500 truncate">{userInfo?.university || 'University Student'}</p>
-                </div>
+              <div className="ml-3 overflow-hidden">
+                <p className="text-sm font-medium text-white truncate">{userInfo?.email || 'User'}</p>
+                <p className="text-xs text-gray-500 truncate">{userInfo?.university || 'University Student'}</p>
+              </div>
               )}
             </div>
           </div>

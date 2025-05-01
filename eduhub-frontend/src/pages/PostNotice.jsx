@@ -504,11 +504,11 @@ function PostNotice() {
             <label className="block text-gray-300 text-sm font-medium mb-2">
               Notice Title*
             </label>
-            <input
-              type="text"
+      <input
+        type="text"
               name="title"
               className={`w-full px-4 py-2 rounded-md bg-gray-700 text-white border ${errors.title ? "border-red-500" : "border-gray-600"} focus:outline-none focus:ring-2 focus:ring-amber-500`}
-              value={form.title}
+        value={form.title}
               onChange={handleChange}
               placeholder="e.g. Final Exam Schedule Update"
             />
@@ -633,7 +633,7 @@ function PostNotice() {
             <label className="block text-gray-300 text-sm font-medium mb-2">
               Notice Content*
             </label>
-            <textarea
+      <textarea
               name="content"
               rows="8"
               className={`w-full px-4 py-2 rounded-md bg-gray-700 text-white border ${errors.content ? "border-red-500" : "border-gray-600"} focus:outline-none focus:ring-2 focus:ring-amber-500`}
@@ -749,13 +749,13 @@ function PostNotice() {
               Cancel
             </button>
             
-            <button
+      <button
               type="submit"
               disabled={isSubmitting || isUploading}
               className={`px-8 py-3 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-medium hover:from-amber-600 hover:to-yellow-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors ${(isSubmitting || isUploading) ? 'opacity-70 cursor-not-allowed' : ''}`}
-            >
+      >
               {isSubmitting ? 'Posting...' : 'Post Notice'}
-            </button>
+      </button>
           </div>
         </form>
       </div>

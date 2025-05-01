@@ -266,11 +266,11 @@ function UploadCourse() {
             <label className="block text-gray-300 text-sm font-medium mb-2">
               Course Title*
             </label>
-            <input
-              type="text"
+      <input
+        type="text"
               name="title"
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={form.title}
+        value={form.title}
               onChange={handleChange}
               placeholder="e.g. Introduction to Computer Science"
             />
@@ -473,8 +473,8 @@ function UploadCourse() {
               <Image className="w-4 h-4 inline-block mr-1" />
               Course Thumbnail URL (Optional)
             </label>
-            <input
-              type="text"
+      <input
+        type="text"
               name="thumbnail"
               className="w-full px-4 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.thumbnail}
@@ -489,8 +489,8 @@ function UploadCourse() {
               Tags
             </label>
             <div className="flex">
-              <input
-                type="text"
+      <input
+        type="text"
                 className="flex-grow px-4 py-2 rounded-l-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
@@ -501,8 +501,8 @@ function UploadCourse() {
                     addTag();
                   }
                 }}
-              />
-              <button
+      />
+      <button
                 type="button"
                 onClick={addTag}
                 className="px-4 py-2 rounded-r-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
@@ -576,7 +576,7 @@ function UploadCourse() {
               className={`px-8 py-3 rounded-md bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium hover:from-blue-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {isSubmitting ? 'Uploading...' : 'Upload Course'}
-            </button>
+      </button>
           </div>
         </form>
       </div>

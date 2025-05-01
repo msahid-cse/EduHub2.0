@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Users,
@@ -29,6 +29,24 @@ import {
   Download
 } from 'lucide-react';
 import { apiClient, communityAPI } from '../api/apiClient';
+
+// CSS styles for animations and gradients
+const styles = {
+  fadeIn: {
+    animation: 'fadeIn 0.3s ease-out',
+  },
+  gradientRadial: {
+    background: 'radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(0, 0, 0, 0) 70%)',
+  }
+};
+
+// Animation keyframes
+const keyframes = `
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+`;
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -275,7 +293,21 @@ const AdminDashboard = () => {
     
     if (newState) {
       fetchCommunityData();
+      // Add a small delay before scrolling to ensure the section is rendered
+      setTimeout(() => {
+        document.getElementById('community-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
+  };
+
+  // Function to handle clicking "Click to manage" in the stats card
+  const handleManageCommunity = () => {
+    setShowCommunitySection(true);
+    fetchCommunityData();
+    // Add a small delay before scrolling to ensure the section is rendered
+    setTimeout(() => {
+      document.getElementById('community-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
   
   // Fetch feedback based on filter
@@ -567,7 +599,7 @@ const AdminDashboard = () => {
           <h1 className="text-2xl font-bold text-cyan-400">Edu Hub Admin Dashboard</h1>
           <div className="flex items-center space-x-4">
             <button 
-              onClick={toggleCommunitySection} 
+              onClick={handleManageCommunity} 
               className={`flex items-center px-3 py-1.5 rounded transition-colors ${
                 showCommunitySection ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
@@ -601,8 +633,8 @@ const AdminDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-200">Total Courses</h3>
             </div>
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.courses || 0}</p>
-          </div>
-          
+        </div>
+
           <div className="bg-gradient-to-br from-amber-600/20 to-amber-800/20 p-6 rounded-lg border border-amber-700/50 shadow-lg">
             <div className="flex items-center mb-3">
               <Briefcase className="h-7 w-7 text-amber-400 mr-3" />
@@ -627,19 +659,33 @@ const AdminDashboard = () => {
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.feedback || 0}</p>
           </div>
           
-          <div className="bg-gradient-to-br from-cyan-600/20 to-cyan-800/20 p-6 rounded-lg border border-cyan-700/50 shadow-lg cursor-pointer hover:bg-cyan-700/30 transition-colors" onClick={toggleCommunitySection}>
+          <div className="bg-gradient-to-br from-cyan-600/20 to-cyan-800/20 p-6 rounded-lg border border-cyan-700/50 shadow-lg cursor-pointer hover:bg-cyan-700/30 transition-colors" onClick={handleManageCommunity}>
             <div className="flex items-center mb-3">
               <Globe className="h-7 w-7 text-cyan-400 mr-3" />
               <h3 className="text-lg font-semibold text-gray-200">Community</h3>
             </div>
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.globalPosts || 0}</p>
-            <p className="text-xs text-cyan-300 mt-2">Click to manage</p>
+            <div className="flex items-center mt-2">
+              <MessageCircle className="h-3 w-3 mr-1 text-cyan-300" />
+              <p className="text-xs text-cyan-300">
+                Click to manage global community
+              </p>
+            </div>
           </div>
         </div>
         
         {/* Quick Actions */}
         <div className="mb-10">
-          <h2 className="text-xl font-semibold mb-4 text-white">Quick Actions</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold mb-4 text-white">Quick Actions</h2>
+            <button 
+              onClick={handleManageCommunity}
+              className="flex items-center mb-4 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-lg text-sm"
+            >
+              <Globe className="h-4 w-4 mr-2" />
+              Jump to Community
+            </button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button 
               onClick={() => navigate('/post-job')}
@@ -666,7 +712,7 @@ const AdminDashboard = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Feedback Management Section */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
@@ -693,7 +739,7 @@ const AdminDashboard = () => {
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto"></div>
               <p className="mt-3 text-gray-400">Loading feedback...</p>
-            </div>
+      </div>
           ) : feedbackList.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-400">No feedback found</p>
@@ -1147,7 +1193,13 @@ const AdminDashboard = () => {
 
       {/* Community Management Section - Conditionally rendered */}
       {showCommunitySection && (
-        <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700 mt-8">
+        <div 
+          id="community-section" 
+          className="bg-gray-800 rounded-lg p-6 mb-8 border-2 border-cyan-600/50 mt-8 relative shadow-lg" 
+          style={{...styles.fadeIn}}
+        >
+          <style>{keyframes}</style>
+          <div style={{...styles.gradientRadial}} className="absolute top-0 right-0 w-20 h-20 rounded-full -mr-10 -mt-10 pointer-events-none"></div>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-cyan-400 flex items-center">
               <Globe className="h-6 w-6 mr-2" />

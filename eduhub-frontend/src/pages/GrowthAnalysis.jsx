@@ -209,7 +209,7 @@ function GrowthAnalysis() {
       </div>
     );
   }
-  
+
   return (
     <div className="bg-slate-900 text-slate-200 min-h-screen pb-10">
       <div className="container mx-auto px-4 py-8">
