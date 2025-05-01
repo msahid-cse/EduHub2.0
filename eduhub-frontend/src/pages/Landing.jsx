@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { apiClient } from '../api/apiClient';
 import {
   Rocket,
   Users,
@@ -1425,8 +1426,9 @@ const FeedbackSection = () => {
     setSubmitError('');
     
     try {
+      // Use the API client instead of direct axios calls
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5000/api/feedback', feedback, {
+      const response = await apiClient.post('/feedback', feedback, {
         headers: {
           Authorization: `Bearer ${token}`
         }

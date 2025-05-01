@@ -1,54 +1,93 @@
 import axios from 'axios';
 
-// Create a base axios instance with common configuration
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:5000/api';
-
+// Create a base API client with default config
 const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: 'http://localhost:5000/api', 
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
-// Add a request interceptor to include authentication token
+// Add authorization headers automatically if token exists
 apiClient.interceptors.request.use(
-  (config) => {
+  config => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
   }
 );
 
-// Add a response interceptor for error handling
+// Handle response errors 
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Handle common error cases
-    if (error.response) {
-      // Server responded with a status code outside of 2xx
-      if (error.response.status === 401) {
-        // Unauthorized - clear local storage and redirect to login
-        localStorage.clear();
+  response => response,
+  error => {
+    // Handle token expiration
+    if (error.response && error.response.status === 401) {
+      // If we get an unauthorized error, check if it's due to token expiration
+      if (error.response.data.message === 'Token is not valid' || 
+          error.response.data.message === 'Token expired') {
+        // Clear localStorage and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userRole');
+        
+        // Redirect to login page
         window.location.href = '/login';
       }
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('Network error - no response received:', error.request);
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('Error setting up request:', error.message);
     }
-    
     return Promise.reject(error);
   }
 );
+
+// Community API endpoints
+const communityAPI = {
+  // Get global posts (visible to all users)
+  getGlobalPosts: () => apiClient.get('/community/global/posts'),
+  
+  // Get university posts (visible only to users from the same university)
+  getPosts: () => apiClient.get('/community/posts'),
+  
+  // Create a new post
+  createPost: (postData) => apiClient.post('/community/posts', postData),
+  
+  // Add a comment to a post
+  addComment: (postId, content) => apiClient.post(`/community/posts/${postId}/comments`, { content }),
+  
+  // Like or unlike a post
+  likePost: (postId) => apiClient.post(`/community/posts/${postId}/like`),
+  
+  // Get university members for chat
+  getMembers: () => apiClient.get('/community/members'),
+  
+  // Get all users (admin only)
+  getAllUsers: () => apiClient.get('/community/users'),
+  
+  // Send a message to another user
+  sendMessage: (receiverId, content, attachment = null) => 
+    apiClient.post('/community/messages', { receiverId, content, attachment }),
+  
+  // Get conversation with another user
+  getConversation: (userId) => apiClient.get(`/community/messages/${userId}`),
+  
+  // Get unread message count
+  getUnreadCount: () => apiClient.get('/community/messages/unread/count'),
+  
+  // Upload file attachment
+  uploadAttachment: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post('/community/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+  }
+};
 
 // API service functions
 const authService = {
@@ -111,4 +150,5 @@ export {
   learningProgressService,
   noticeService,
   jobService,
+  communityAPI,
 }; 

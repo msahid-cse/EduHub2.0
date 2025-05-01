@@ -17,6 +17,7 @@ import ViewCourses from "./pages/ViewCourses";
 import ViewJobs from "./pages/ViewJobs";
 import JobDetails from "./pages/JobDetails";
 import CourseDetails from "./pages/CourseDetails";
+import Community from "./pages/Community";
 import ProtectedRoute from "./components/ProtectedRoute";
 // import Navbar from "./components/Navbar";
 
@@ -41,6 +42,11 @@ function App() {
         <Route path="/userdashboard" element={
           <ProtectedRoute requiredRole="user">
             <UserDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/community" element={
+          <ProtectedRoute>
+            <Community />
           </ProtectedRoute>
         } />
         <Route path="/resource-library" element={

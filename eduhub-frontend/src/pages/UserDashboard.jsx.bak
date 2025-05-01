@@ -1323,414 +1323,169 @@ const UserDashboard = () => {
     }
   };
 
+  // Render appropriate content based on active tab
   const renderContent = () => {
-    if (isLoading) {
+    if (activeTab === 'courses') {
+      return renderCourses();
+    } else if (activeTab === 'faculty') {
+      return renderFaculty();
+    } else if (activeTab === 'notices') {
+      return renderNotices();
+    } else if (activeTab === 'external') {
+      return renderExternalCourses();
+    } else if (activeTab === 'profile') {
+      return renderProfile();
+    } else if (activeTab === 'growth') {
+      return renderGrowthAnalysis();
+    } else if (activeTab === 'community') {
       return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
-          <span className="ml-4 text-gray-400">Loading dashboard data...</span>
-        </div>
+        <iframe
+          src="/community"
+          className="w-full h-[calc(100vh-150px)] border-none rounded-lg"
+          title="Community"
+        />
       );
+    } else {
+      return null;
     }
+  };
 
-    switch (activeTab) {
-      case 'profile':
-        return (
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-2xl font-bold text-white">Your Profile</h2>
-              <span className="text-gray-400">Update your personal information and settings</span>
-            </div>
-            
-            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Profile Picture Section */}
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="w-48 h-48 rounded-full bg-gray-700 overflow-hidden relative group">
-                    {profileData.profilePicture ? (
-                      <img 
-                        src={profileData.profilePicture} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User size={64} className="text-gray-400" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <label className="cursor-pointer flex flex-col items-center text-white">
-                        <Upload size={24} />
-                        <span className="text-sm mt-2">Upload Photo</span>
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          accept="image/*"
-                          onChange={handleImageChange}
-                        />
-                      </label>
+  // Render courses content
+  const renderCourses = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <h2 className="text-2xl font-bold text-white">Your Enrolled Courses</h2>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search courses..."
+              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        {filteredCourses.length === 0 ? (
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-8 text-center">
+            <BookOpen className="mx-auto w-12 h-12 text-gray-500 mb-4" />
+            <h3 className="text-xl font-medium text-gray-300">No courses found</h3>
+            <p className="text-gray-500 mt-2">
+              {searchQuery ? 'Try a different search term' : 'You have not enrolled in any courses yet'}
+            </p>
+            <button 
+              onClick={() => navigate('/courses')}
+              className="mt-6 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-white text-sm font-medium transition-colors"
+            >
+              Browse Available Courses
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredCourses.map(course => (
+              <div key={course._id} className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden group">
+                <div className="relative h-40 overflow-hidden">
+                  <img
+                    src={course.thumbnail || 'https://via.placeholder.com/640x360.png?text=Course+Image'}
+                    alt={course.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-70"></div>
+                  
+                  {/* Course progress indicator */}
+                  <div className="absolute bottom-0 left-0 right-0">
+                    <div className="bg-gray-900/80 px-3 py-2 flex items-center justify-between">
+                      <span className="text-sm text-white">
+                        {course.progress?.percentComplete || 0}% Complete
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Last accessed: {course.progress?.lastAccessed 
+                          ? new Date(course.progress.lastAccessed).toLocaleDateString() 
+                          : 'Never'}
+                      </span>
+                    </div>
+                    <div className="h-1 w-full bg-gray-700">
+                      <div 
+                        className="h-1 bg-cyan-500" 
+                        style={{ width: `${course.progress?.percentComplete || 0}%` }}
+                      ></div>
                     </div>
                   </div>
-                  <h3 className="text-xl font-medium text-white">{profileData.fullName || userInfo?.name}</h3>
-                  <p className="text-gray-400">Student at {profileData.university || userInfo?.university}</p>
+                  
+                  {/* Course type badges */}
+                  <div className="absolute top-2 left-2 flex gap-2">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      course.courseType === 'academic' 
+                        ? 'bg-blue-900/80 text-blue-300' 
+                        : 'bg-green-900/80 text-green-300'
+                    }`}>
+                      {course.courseType === 'academic' ? 'Academic' : 'Co-Curricular'}
+                    </span>
+                    
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      course.courseSegment === 'video' 
+                        ? 'bg-purple-900/80 text-purple-300' 
+                        : 'bg-amber-900/80 text-amber-300'
+                    }`}>
+                      {course.courseSegment === 'video' ? 'Video' : 'Theory'}
+                    </span>
+                  </div>
                 </div>
                 
-                {/* Profile Info Form */}
-                <div className="md:col-span-2 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-400 mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        value={profileData.fullName}
-                        onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={profileData.email}
-                        onChange={(e) => setProfileData({...profileData, email: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        readOnly
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 mb-1">Phone Number</label>
-                      <div className="relative">
-                        <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="tel"
-                          value={profileData.phoneNumber}
-                          onChange={(e) => setProfileData({...profileData, phoneNumber: e.target.value})}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="+1 (555) 123-4567"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 mb-1">Department</label>
-                      <input
-                        type="text"
-                        value={profileData.department}
-                        onChange={(e) => setProfileData({...profileData, department: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        placeholder="Computer Science"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-400 mb-1">University</label>
-                      <input
-                        type="text"
-                        value={profileData.university}
-                        onChange={(e) => setProfileData({...profileData, university: e.target.value})}
-                        className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
+                <div className="p-5">
+                  <h3 className="text-xl font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors">
+                    {course.title}
+                  </h3>
+                  
+                  <div className="flex items-center mt-2 text-gray-300">
+                    <GraduationCap className="inline mr-2 w-4 h-4" /> {course.instructor}
                   </div>
                   
-                  <div className="space-y-4 mt-6">
-                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Social Profiles & Coding Platforms</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="relative">
-                        <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={profileData.github}
-                          onChange={(e) => setProfileData({...profileData, github: e.target.value})}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="GitHub Username"
-                        />
-                      </div>
-                      <div className="relative">
-                        <Code size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={profileData.codeforces}
-                          onChange={(e) => setProfileData({...profileData, codeforces: e.target.value})}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="Codeforces Handle"
-                        />
-                      </div>
-                      <div className="relative">
-                        <AtSign size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={profileData.linkedin}
-                          onChange={(e) => setProfileData({...profileData, linkedin: e.target.value})}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="LinkedIn Username"
-                        />
-                      </div>
-                      <div className="relative">
-                        <AtSign size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={profileData.twitter}
-                          onChange={(e) => setProfileData({...profileData, twitter: e.target.value})}
-                          className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="Twitter Handle"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-gray-400 mt-3 line-clamp-2">{course.description}</p>
                   
-                  <div className="space-y-4 mt-6">
-                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Skills</h3>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {profileData.skills.map((skill, index) => (
-                        <span 
-                          key={index} 
-                          className="bg-cyan-900/30 text-cyan-400 px-3 py-1 rounded-full text-sm flex items-center"
-                        >
-                          {skill}
-                          <span className="mx-1 text-gray-500">|</span>
-                          <span className="text-xs text-green-400">
-                            {profileData.skillsMap?.[skill] || 50}%
-                          </span>
-                          <button 
-                            onClick={() => handleRemoveSkill(skill)} 
-                            className="ml-2 text-cyan-400 hover:text-cyan-300"
-                          >
-                            <X size={14} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={skillProficiency.skill}
-                          name="skill"
-                          onChange={handleSkillProficiencyChange}
-                          className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          placeholder="Add a skill (e.g., JavaScript, Python, Design)"
-                        />
-                        {skillProficiency.skill && (
-                          <div className="absolute top-full mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10 max-h-40 overflow-y-auto">
-                            {suggestedSkills
-                              .filter(skill => skill.toLowerCase().includes(skillProficiency.skill.toLowerCase()))
-                              .map((skill, index) => (
-                                <div 
-                                  key={index}
-                                  className="px-4 py-2 hover:bg-gray-700 cursor-pointer"
-                                  onClick={() => setSkillProficiency(prev => ({ ...prev, skill }))}
-                                >
-                                  {skill}
-                                </div>
-                              ))
-                            }
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="mt-2">
-                        <label className="text-sm text-gray-400 block mb-1">Proficiency Level: {skillProficiency.proficiency}%</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="5"
-                          name="proficiency"
-                          value={skillProficiency.proficiency}
-                          onChange={handleSkillProficiencyChange}
-                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>Beginner</span>
-                          <span>Intermediate</span>
-                          <span>Expert</span>
-                        </div>
-                      </div>
-                      
-                      <button 
-                        onClick={handleAddSkillWithProficiency}
-                        className="px-4 py-2 mt-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white self-start"
-                      >
-                        Add Skill
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4 mt-6">
-                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">About Me</h3>
-                    <textarea
-                      value={profileData.bio}
-                      onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
-                      className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-32"
-                      placeholder="Write a short bio about yourself..."
-                    ></textarea>
-                  </div>
-
-                  <div className="space-y-4 mt-6">
-                    <h3 className="text-lg font-medium text-white border-b border-gray-700 pb-2">Security Settings</h3>
-                    <div className="flex items-center justify-between p-4 bg-gray-800/50 border border-gray-700 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Change Password</h4>
-                        <p className="text-gray-400 text-sm mt-1">Update your password to keep your account secure</p>
-                      </div>
-                      <button 
-                        onClick={() => setShowPasswordModal(true)}
-                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white text-sm flex items-center"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Change Password
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end mt-6">
+                  <div className="mt-4 flex space-x-3">
                     <button 
-                      id="saveProfileBtn"
-                      onClick={handleSaveProfile}
-                      className="flex items-center px-6 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium transition-colors"
+                      onClick={() => handleViewCourse(course._id)}
+                      className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-sm font-medium transition-colors flex-grow flex items-center justify-center"
                     >
-                      <Save size={18} className="mr-2" />
-                      Save Profile
+                      {course.progress?.percentComplete > 0 ? (
+                        <>
+                          <Play className="w-4 h-4 mr-1" /> Continue Learning
+                        </>
+                      ) : (
+                        <>
+                          {course.courseSegment === 'video' ? 'Watch Course' : 'View Materials'}
+                        </>
+                      )}
                     </button>
+                    {course.progress?.percentComplete === 100 && (
+                      <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-md text-sm flex items-center">
+                        Completed
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-        );
-      
-      case 'courses':
-        return (
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-2xl font-bold text-white">Your Enrolled Courses</h2>
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search courses..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            {filteredCourses.length === 0 ? (
-              <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-8 text-center">
-                <BookOpen className="mx-auto w-12 h-12 text-gray-500 mb-4" />
-                <h3 className="text-xl font-medium text-gray-300">No courses found</h3>
-                <p className="text-gray-500 mt-2">
-                  {searchQuery ? 'Try a different search term' : 'You have not enrolled in any courses yet'}
-                </p>
-                <button 
-                  onClick={() => navigate('/courses')}
-                  className="mt-6 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-white text-sm font-medium transition-colors"
-                >
-                  Browse Available Courses
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredCourses.map(course => (
-                  <div key={course._id} className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden group">
-                    <div className="relative h-40 overflow-hidden">
-                      <img
-                        src={course.thumbnail || 'https://via.placeholder.com/640x360.png?text=Course+Image'}
-                        alt={course.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-70"></div>
-                      
-                      {/* Course progress indicator */}
-                      <div className="absolute bottom-0 left-0 right-0">
-                        <div className="bg-gray-900/80 px-3 py-2 flex items-center justify-between">
-                          <span className="text-sm text-white">
-                            {course.progress?.percentComplete || 0}% Complete
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            Last accessed: {course.progress?.lastAccessed 
-                              ? new Date(course.progress.lastAccessed).toLocaleDateString() 
-                              : 'Never'}
-                          </span>
-                        </div>
-                        <div className="h-1 w-full bg-gray-700">
-                          <div 
-                            className="h-1 bg-cyan-500" 
-                            style={{ width: `${course.progress?.percentComplete || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      
-                      {/* Course type badges */}
-                      <div className="absolute top-2 left-2 flex gap-2">
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          course.courseType === 'academic' 
-                            ? 'bg-blue-900/80 text-blue-300' 
-                            : 'bg-green-900/80 text-green-300'
-                        }`}>
-                          {course.courseType === 'academic' ? 'Academic' : 'Co-Curricular'}
-                        </span>
-                        
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          course.courseSegment === 'video' 
-                            ? 'bg-purple-900/80 text-purple-300' 
-                            : 'bg-amber-900/80 text-amber-300'
-                        }`}>
-                          {course.courseSegment === 'video' ? 'Video' : 'Theory'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="p-5">
-                      <h3 className="text-xl font-semibold text-cyan-400 group-hover:text-cyan-300 transition-colors">
-                        {course.title}
-                      </h3>
-                      
-                      <div className="flex items-center mt-2 text-gray-300">
-                        <GraduationCap className="inline mr-2 w-4 h-4" /> {course.instructor}
-                      </div>
-                      
-                      <p className="text-gray-400 mt-3 line-clamp-2">{course.description}</p>
-                      
-                      <div className="mt-4 flex space-x-3">
-                        <button 
-                          onClick={() => handleViewCourse(course._id)}
-                          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-md text-sm font-medium transition-colors flex-grow flex items-center justify-center"
-                        >
-                          {course.progress?.percentComplete > 0 ? (
-                            <>
-                              <Play className="w-4 h-4 mr-1" /> Continue Learning
-                            </>
-                          ) : (
-                            <>
-                              {course.courseSegment === 'video' ? 'Watch Course' : 'View Materials'}
-                            </>
-                          )}
-                        </button>
-                        {course.progress?.percentComplete === 100 && (
-                          <span className="px-3 py-1 bg-green-900/30 text-green-400 rounded-md text-sm flex items-center">
-                            Completed
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      
-      case 'faculty':
-        return (
-          <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h2 className="text-2xl font-bold text-white">Faculty Members</h2>
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search faculty..."
+        )}
+      </div>
+    );
+  };
+
+  // Render faculty content
+  const renderFaculty = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <h2 className="text-2xl font-bold text-white">Faculty Members</h2>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search faculty..."
                   className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

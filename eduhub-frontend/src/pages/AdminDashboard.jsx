@@ -11,8 +11,15 @@ import {
   PlusCircle,
   List,
   Edit,
-  Trash2
+  Trash2,
+  MessageSquare,
+  Mail,
+  CheckCircle,
+  RefreshCw,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
+import { apiClient } from '../api/apiClient';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -20,12 +27,22 @@ const AdminDashboard = () => {
     users: 0,
     courses: 0,
     jobs: 0,
-    notices: 0
+    notices: 0,
+    feedback: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [recentJobs, setRecentJobs] = useState([]);
   const [recentNotices, setRecentNotices] = useState([]);
   const [recentCourses, setRecentCourses] = useState([]);
+  
+  // Feedback management state
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [responseText, setResponseText] = useState('');
+  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [sendingResponse, setSendingResponse] = useState(false);
+  const [feedbackFilter, setFeedbackFilter] = useState('all');
 
   // Check if user is admin
   useEffect(() => {
@@ -71,14 +88,21 @@ const AdminDashboard = () => {
         const recentCoursesData = coursesResponse.data.slice(0, 5);
         setRecentCourses(recentCoursesData);
         
+        // Get feedback data
+        const feedbackResponse = await axios.get('http://localhost:5000/api/feedback', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
         setStats(prev => ({
           ...prev,
           jobs: jobsResponse.data.length,
           notices: noticesResponse.data.length,
-          courses: coursesResponse.data.length
+          courses: coursesResponse.data.length,
+          feedback: feedbackResponse.data.length
         }));
         
-        // We'll add more stats fetching later
+        // Set the feedback list with the most recent 5 items
+        setFeedbackList(feedbackResponse.data.slice(0, 5));
         
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -89,6 +113,80 @@ const AdminDashboard = () => {
     
     fetchDashboardData();
   }, []);
+  
+  // Fetch feedback based on filter
+  const fetchFeedback = async (status = 'all') => {
+    setLoadingFeedback(true);
+    try {
+      const token = localStorage.getItem('token');
+      let url = 'http://localhost:5000/api/feedback';
+      
+      if (status !== 'all') {
+        url += `?status=${status}`;
+      }
+      
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setFeedbackList(response.data);
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+  
+  // Handle feedback status update
+  const updateFeedbackStatus = async (id, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:5000/api/feedback/${id}`, 
+        { status },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+      
+      // Refresh feedback list
+      fetchFeedback(feedbackFilter);
+    } catch (error) {
+      console.error('Error updating feedback status:', error);
+    }
+  };
+  
+  // Handle open response modal
+  const openResponseModal = (feedback) => {
+    setSelectedFeedback(feedback);
+    setResponseText('');
+    setShowResponseModal(true);
+  };
+  
+  // Handle sending response to user
+  const sendResponse = async () => {
+    if (!selectedFeedback || !responseText.trim()) return;
+    
+    setSendingResponse(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:5000/api/feedback/${selectedFeedback._id}`, 
+        { 
+          status: 'resolved',
+          adminResponse: responseText 
+        },
+        { headers: { Authorization: `Bearer ${token}` }}
+      );
+      
+      // Close modal and refresh feedback list
+      setShowResponseModal(false);
+      setResponseText('');
+      setSelectedFeedback(null);
+      fetchFeedback(feedbackFilter);
+      
+    } catch (error) {
+      console.error('Error sending response:', error);
+    } finally {
+      setSendingResponse(false);
+    }
+  };
 
   return (
     <div className="bg-gray-900 text-gray-100 min-h-screen">
@@ -108,7 +206,7 @@ const AdminDashboard = () => {
 
       <div className="container mx-auto p-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 p-6 rounded-lg border border-blue-700/50 shadow-lg">
             <div className="flex items-center mb-3">
               <Users className="h-7 w-7 text-blue-400 mr-3" />
@@ -140,6 +238,14 @@ const AdminDashboard = () => {
             </div>
             <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.notices || 0}</p>
           </div>
+          
+          <div className="bg-gradient-to-br from-cyan-600/20 to-cyan-800/20 p-6 rounded-lg border border-cyan-700/50 shadow-lg">
+            <div className="flex items-center mb-3">
+              <MessageSquare className="h-7 w-7 text-cyan-400 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-200">Feedback</h3>
+            </div>
+            <p className="text-3xl font-bold text-white">{isLoading ? '...' : stats.feedback || 0}</p>
+          </div>
         </div>
         
         {/* Quick Actions */}
@@ -170,6 +276,132 @@ const AdminDashboard = () => {
               <span>Post New Notice</span>
             </button>
           </div>
+        </div>
+        
+        {/* Feedback Management Section */}
+        <div className="bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-white">User Feedback & Suggestions</h2>
+            <div className="flex space-x-2">
+              <select
+                value={feedbackFilter}
+                onChange={(e) => {
+                  setFeedbackFilter(e.target.value);
+                  fetchFeedback(e.target.value);
+                }}
+                className="bg-gray-700 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 py-2 px-3"
+              >
+                <option value="all">All Feedback</option>
+                <option value="new">New</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          </div>
+          
+          {loadingFeedback ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto"></div>
+              <p className="mt-3 text-gray-400">Loading feedback...</p>
+            </div>
+          ) : feedbackList.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400">No feedback found</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-gray-900 rounded-lg overflow-hidden">
+                <thead className="bg-gray-700">
+                  <tr>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Subject</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">From</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                    <th className="py-3 px-4 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {feedbackList.map(feedback => (
+                    <tr key={feedback._id} className="hover:bg-gray-800/60">
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-white">{feedback.subject}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${feedback.category === 'suggestion' ? 'bg-blue-100 text-blue-800' : 
+                          feedback.category === 'bug' ? 'bg-red-100 text-red-800' : 
+                          feedback.category === 'feature' ? 'bg-green-100 text-green-800' : 
+                          feedback.category === 'complaint' ? 'bg-amber-100 text-amber-800' :
+                          feedback.category === 'praise' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'}`}>
+                          {feedback.category}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-300">{feedback.userName}</div>
+                        <div className="text-xs text-gray-400">{feedback.userEmail}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${feedback.status === 'new' ? 'bg-cyan-100 text-cyan-800' : 
+                          feedback.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' : 
+                          feedback.status === 'resolved' ? 'bg-green-100 text-green-800' : 
+                          'bg-gray-100 text-gray-800'}`}>
+                          {feedback.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-300">
+                          {new Date(feedback.createdAt).toLocaleDateString()}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          onClick={() => openResponseModal(feedback)}
+                          className="text-cyan-400 hover:text-cyan-300 mr-3"
+                          title="Reply to feedback"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </button>
+                        
+                        {feedback.status === 'new' && (
+                          <button 
+                            onClick={() => updateFeedbackStatus(feedback._id, 'in-progress')}
+                            className="text-yellow-400 hover:text-yellow-300 mr-3"
+                            title="Mark as in progress"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {feedback.status !== 'resolved' && feedback.status !== 'closed' && (
+                          <button 
+                            onClick={() => updateFeedbackStatus(feedback._id, 'resolved')}
+                            className="text-green-400 hover:text-green-300 mr-3"
+                            title="Mark as resolved"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {feedback.status !== 'closed' && (
+                          <button 
+                            onClick={() => updateFeedbackStatus(feedback._id, 'closed')}
+                            className="text-red-400 hover:text-red-300"
+                            title="Close feedback"
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
         
         {/* Recent Jobs */}
@@ -459,6 +691,70 @@ const AdminDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Response Modal */}
+      {showResponseModal && selectedFeedback && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fadeIn">
+            <div className="bg-gray-700 p-4">
+              <h3 className="text-lg font-medium text-white">Reply to Feedback</h3>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-400">From: {selectedFeedback.userName} ({selectedFeedback.userEmail})</p>
+                <p className="text-sm text-gray-400 mt-1">Subject: {selectedFeedback.subject}</p>
+                <p className="text-sm text-gray-400 mt-1">Category: {selectedFeedback.category}</p>
+              </div>
+              
+              <div className="mb-6 bg-gray-700 p-4 rounded-lg">
+                <p className="text-sm text-gray-300">{selectedFeedback.message}</p>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="response" className="block text-sm font-medium text-gray-300 mb-2">
+                  Your Response
+                </label>
+                <textarea
+                  id="response"
+                  rows="4"
+                  className="w-full px-3 py-2 text-gray-100 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  placeholder="Type your response here..."
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                ></textarea>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-700 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowResponseModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-600 rounded-lg hover:bg-gray-500 focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendResponse}
+                disabled={!responseText.trim() || sendingResponse}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg focus:outline-none flex items-center
+                  ${!responseText.trim() || sendingResponse ? 'bg-cyan-600/50 cursor-not-allowed' : 'bg-cyan-600 hover:bg-cyan-700'}`}
+              >
+                {sendingResponse ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send Response
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
