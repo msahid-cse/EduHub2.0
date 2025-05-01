@@ -27,6 +27,7 @@ import ViewEvents from "./pages/ViewEvents";
 import EventDetail from "./pages/EventDetail";
 import EditEvent from "./pages/EditEvent";
 import SendEventInvitations from "./pages/SendEventInvitations";
+import JobSearchByCV from "./pages/JobSearchByCV";
 // import Navbar from "./components/Navbar";
 
 function App() {
@@ -62,6 +63,11 @@ function App() {
         <Route path="/userdashboard" element={
           <ProtectedRoute requiredRole="user">
             <UserDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/job-search-by-cv" element={
+          <ProtectedRoute requiredRole="user">
+            <JobSearchByCV />
           </ProtectedRoute>
         } />
         <Route path="/community" element={

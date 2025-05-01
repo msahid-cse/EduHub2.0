@@ -36,7 +36,13 @@ import {
   MessageCircle,
   Briefcase,
   CheckCircle,
-  Send
+  Send,
+  Eye,
+  Plus,
+  Trash,
+  Download,
+  Trash2,
+  FileSearch
 } from 'lucide-react';
 import axios from 'axios';
 import { apiClient, instructorService } from '../api/apiClient';
@@ -156,6 +162,38 @@ const UserDashboard = () => {
   });
   const [appointmentSuccess, setAppointmentSuccess] = useState(false);
   const [appointmentError, setAppointmentError] = useState('');
+
+  // Add state for CV Builder
+  const [cvData, setCvData] = useState({
+    personalInfo: {
+      fullName: '',
+      email: '',
+      phone: '',
+      address: '',
+      linkedin: '',
+      website: ''
+    },
+    education: [
+      { id: 1, institution: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', gpa: '' }
+    ],
+    experience: [
+      { id: 1, company: '', position: '', location: '', startDate: '', endDate: '', description: '' }
+    ],
+    skills: [],
+    projects: [
+      { id: 1, title: '', description: '', technologies: '', link: '' }
+    ],
+    certificates: [
+      { id: 1, name: '', issuer: '', date: '', link: '' }
+    ],
+    languages: [
+      { id: 1, language: '', proficiency: '' }
+    ]
+  });
+  
+  // CV template selection state
+  const [selectedCvTemplate, setSelectedCvTemplate] = useState('modern');
+  const [showCvPreview, setShowCvPreview] = useState(false);
 
   // Load user information and course data
   useEffect(() => {
@@ -1322,19 +1360,31 @@ const UserDashboard = () => {
     }
   };
 
-  // Function to handle appointment scheduling
+  // Function to handle scheduling appointment
   const handleScheduleAppointment = (faculty) => {
     setSelectedFaculty(faculty);
     setAppointmentData({
-      day: faculty.availability && faculty.availability.length > 0 ? faculty.availability[0].day : '',
-      time: faculty.availability && faculty.availability.length > 0 && faculty.availability[0].slots.length > 0 
-        ? faculty.availability[0].slots[0] : '',
+      day: '',
+      time: '',
       purpose: '',
       message: ''
     });
     setAppointmentSuccess(false);
     setAppointmentError('');
     setShowAppointmentModal(true);
+  };
+
+  // Function to get all days of the week
+  const getAllDays = () => {
+    return [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
   };
 
   // Function to handle sending appointment request
@@ -1349,26 +1399,51 @@ const UserDashboard = () => {
       console.log('Sending appointment request to:', selectedFaculty);
       console.log('Appointment data:', appointmentData);
       
+      // Format the time for better readability
+      const formatTime = (timeString) => {
+        if (!timeString) return '';
+        
+        try {
+          // Convert 24-hour format to 12-hour format with AM/PM
+          const [hours, minutes] = timeString.split(':');
+          const hour = parseInt(hours, 10);
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const hour12 = hour % 12 || 12; // Convert 0 to 12
+          return `${hour12}:${minutes} ${ampm}`;
+        } catch (e) {
+          return timeString; // Return original if parsing fails
+        }
+      };
+      
+      const formattedTime = formatTime(appointmentData.time);
+      
       // Prepare email content
       const emailTo = encodeURIComponent(selectedFaculty.email || 'msahid.cse@gmail.com'); // Test case
       const emailSubject = encodeURIComponent(`Appointment Request: ${appointmentData.purpose}`);
       
-      // Create detailed body with all appointment information
+      // Create a well-formatted plaintext email that will display correctly in Gmail
       const emailBody = encodeURIComponent(
-        `Dear ${selectedFaculty.name} Sir,\n\n` +
-        `I would like to request an appointment with you for ${appointmentData.purpose}.\n\n` +
+        `Dear ${selectedFaculty.name},\n\n` +
+        `I hope this email finds you well. I am writing to request an appointment with you regarding ${appointmentData.purpose}.\n\n` +
+        `APPOINTMENT DETAILS\n` +
+        `--------------------------------------------------\n` +
         `Requested Date: ${appointmentData.day}\n` +
-        `Requested Time: ${appointmentData.time}\n\n` +
-        `${appointmentData.message ? 'Additional Message:\n' + appointmentData.message + '\n\n' : ''}` +
-        `Please let me know if this time works for you or if we need to find an alternative.\n\n` +
-        `Thank you,\n` +
+        `Requested Time: ${formattedTime}\n` +
+        `Purpose: ${appointmentData.purpose}\n` +
+        `--------------------------------------------------\n\n` +
+        `${appointmentData.message ? 'ADDITIONAL INFORMATION:\n' + appointmentData.message + '\n\n' : ''}` +
+        `Please let me know if this time works for you or if we need to find an alternative. I am flexible and can adjust to your schedule if needed.\n\n` +
+        `Thank you for your time and consideration.\n\n` +
+        `Best regards,\n` +
         `${userInfo?.name || 'Student'}\n` +
         `${userInfo?.email || ''}\n` +
-        `${userInfo?.department ? 'Department: ' + userInfo.department : ''}\n` +
-        `${userInfo?.university ? 'University: ' + userInfo.university : ''}`
+        `${userInfo?.department ? 'Department: ' + userInfo.department + '\n' : ''}` +
+        `${userInfo?.university ? 'University: ' + userInfo.university + '\n' : ''}\n\n` +
+        `--------------------------------------------------\n` +
+        `This appointment request was sent via the EduHub 2.0 Appointment System.`
       );
       
-      // The most reliable format for Gmail compose URL
+      // Use the standard Gmail compose URL without HTML flag
       const gmailComposeUrl = `https://mail.google.com/mail/u/0/?to=${emailTo}&su=${emailSubject}&body=${emailBody}&tf=cm`;
       
       // Open in a new tab
@@ -1412,6 +1487,649 @@ const UserDashboard = () => {
     );
     
     return daySchedule ? daySchedule.slots : [];
+  };
+
+  // CV Builder functions
+  const handleCvDataChange = (section, value, index = null) => {
+    if (index !== null) {
+      // For array sections (education, experience, etc.)
+      setCvData(prev => ({
+        ...prev,
+        [section]: prev[section].map((item, i) => 
+          i === index ? { ...item, ...value } : item
+        )
+      }));
+    } else {
+      // For personal info section
+      setCvData(prev => ({
+        ...prev,
+        [section]: typeof value === 'object' ? { ...prev[section], ...value } : value
+      }));
+    }
+  };
+
+  const addCvItem = (section) => {
+    setCvData(prev => ({
+      ...prev,
+      [section]: [
+        ...prev[section], 
+        { id: Date.now(), ...getEmptyItemTemplate(section) }
+      ]
+    }));
+  };
+
+  const removeCvItem = (section, itemId) => {
+    setCvData(prev => ({
+      ...prev,
+      [section]: prev[section].filter(item => item.id !== itemId)
+    }));
+  };
+
+  const getEmptyItemTemplate = (section) => {
+    switch (section) {
+      case 'education':
+        return { institution: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '', gpa: '' };
+      case 'experience':
+        return { company: '', position: '', location: '', startDate: '', endDate: '', description: '' };
+      case 'projects':
+        return { title: '', description: '', technologies: '', link: '' };
+      case 'certificates':
+        return { name: '', issuer: '', date: '', link: '' };
+      case 'languages':
+        return { language: '', proficiency: '' };
+      default:
+        return {};
+    }
+  };
+
+  const exportAsPdf = () => {
+    // Create a styled HTML representation of the CV
+    const cvHtml = generateCvHtml();
+    
+    // Open in a new window for printing/saving as PDF
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(cvHtml);
+    printWindow.document.close();
+    
+    // Trigger print dialog
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  const exportAsWord = () => {
+    // Create a styled HTML representation of the CV
+    const cvHtml = generateCvHtml();
+    
+    // Convert to a Blob
+    const blob = new Blob([cvHtml], {type: 'application/msword'});
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${cvData.personalInfo.fullName || 'My'}_CV.doc`;
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generateCvHtml = () => {
+    // Common HTML head with different CSS based on template
+    const getTemplateStyles = () => {
+      switch (selectedCvTemplate) {
+        case 'modern':
+          return `
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            h1 {
+              color: #2563eb;
+              margin-bottom: 5px;
+              font-weight: 600;
+              font-size: 28px;
+            }
+            h2 {
+              color: #2563eb;
+              border-bottom: 2px solid #e5e7eb;
+              padding-bottom: 8px;
+              margin-top: 25px;
+              font-size: 20px;
+              font-weight: 600;
+            }
+            .contact-info {
+              margin-bottom: 20px;
+              font-size: 0.9em;
+              color: #555;
+            }
+            .section {
+              margin-bottom: 25px;
+            }
+            .item {
+              margin-bottom: 18px;
+            }
+            .item-header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 5px;
+            }
+            .item-title {
+              font-weight: bold;
+              color: #333;
+            }
+            .item-subtitle {
+              font-style: italic;
+              color: #555;
+            }
+            .item-date {
+              color: #555;
+            }
+            .item-description {
+              margin-top: 5px;
+              color: #444;
+            }
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+            }
+            .skill-item {
+              background-color: #f0f4ff;
+              padding: 5px 10px;
+              border-radius: 15px;
+              font-size: 0.9em;
+              color: #2563eb;
+            }
+          `;
+        
+        case 'minimal':
+          return `
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.5;
+              color: #222;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            h1 {
+              color: #000;
+              margin-bottom: 5px;
+              font-weight: bold;
+              font-size: 26px;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+            }
+            h2 {
+              color: #000;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              font-size: 16px;
+              margin-top: 25px;
+              border-bottom: 1px solid #ddd;
+              padding-bottom: 5px;
+            }
+            .contact-info {
+              margin-bottom: 20px;
+              font-size: 0.9em;
+            }
+            .section {
+              margin-bottom: 25px;
+            }
+            .item {
+              margin-bottom: 15px;
+            }
+            .item-header {
+              display: flex;
+              justify-content: space-between;
+            }
+            .item-title {
+              font-weight: bold;
+            }
+            .item-subtitle {
+              font-style: normal;
+            }
+            .item-date {
+              color: #666;
+            }
+            .item-description {
+              margin-top: 5px;
+            }
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 12px;
+            }
+            .skill-item {
+              padding: 3px 0;
+              font-size: 0.9em;
+            }
+          `;
+        
+        case 'creative':
+          return `
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+            body {
+              font-family: 'Poppins', sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              background-color: #fdfdfd;
+            }
+            h1 {
+              color: #9333ea;
+              margin-bottom: 5px;
+              font-weight: 600;
+              font-size: 30px;
+            }
+            h2 {
+              color: #9333ea;
+              font-weight: 500;
+              font-size: 20px;
+              margin-top: 30px;
+              padding-bottom: 8px;
+              position: relative;
+            }
+            h2:after {
+              content: '';
+              position: absolute;
+              left: 0;
+              bottom: 0;
+              width: 40px;
+              height: 3px;
+              background: #9333ea;
+            }
+            .contact-info {
+              margin-bottom: 20px;
+              font-size: 0.9em;
+              color: #555;
+            }
+            .section {
+              margin-bottom: 25px;
+            }
+            .item {
+              margin-bottom: 20px;
+              padding-left: 12px;
+              border-left: 2px solid #e9d5ff;
+            }
+            .item-header {
+              display: flex;
+              justify-content: space-between;
+            }
+            .item-title {
+              font-weight: 600;
+              color: #111;
+            }
+            .item-subtitle {
+              font-weight: 400;
+              color: #555;
+            }
+            .item-date {
+              color: #9333ea;
+              font-weight: 500;
+            }
+            .item-description {
+              margin-top: 8px;
+              color: #444;
+            }
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+            }
+            .skill-item {
+              background-color: #f3e8ff;
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 0.9em;
+              color: #9333ea;
+              font-weight: 500;
+            }
+          `;
+        
+        case 'professional':
+          return `
+            body {
+              font-family: 'Times New Roman', Times, serif;
+              line-height: 1.6;
+              color: #222;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            h1 {
+              color: #14532d;
+              margin-bottom: 5px;
+              font-size: 26px;
+              text-align: center;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            h2 {
+              color: #14532d;
+              border-bottom: 1px solid #14532d;
+              padding-bottom: 5px;
+              margin-top: 20px;
+              font-size: 18px;
+              text-transform: uppercase;
+            }
+            .contact-info {
+              margin-bottom: 20px;
+              font-size: 0.9em;
+              text-align: center;
+            }
+            .section {
+              margin-bottom: 25px;
+            }
+            .item {
+              margin-bottom: 15px;
+            }
+            .item-header {
+              display: flex;
+              justify-content: space-between;
+            }
+            .item-title {
+              font-weight: bold;
+            }
+            .item-subtitle {
+              font-style: italic;
+            }
+            .item-date {
+              color: #555;
+            }
+            .item-description {
+              margin-top: 5px;
+              text-align: justify;
+            }
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 15px;
+            }
+            .skill-item {
+              font-size: 0.95em;
+            }
+          `;
+        
+        case 'technical':
+          return `
+            body {
+              font-family: 'Courier New', monospace;
+              line-height: 1.5;
+              color: #333;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              background-color: #f8f8f8;
+            }
+            h1 {
+              color: #0f766e;
+              margin-bottom: 10px;
+              font-size: 24px;
+              border-bottom: 2px solid #0f766e;
+              padding-bottom: 5px;
+            }
+            h2 {
+              color: #0f766e;
+              border-left: 4px solid #0f766e;
+              padding-left: 10px;
+              margin-top: 25px;
+              font-size: 18px;
+              background-color: #f0fdfa;
+              padding: 8px 12px;
+            }
+            .contact-info {
+              margin-bottom: 20px;
+              font-size: 0.9em;
+              background-color: #e6e6e6;
+              padding: 10px;
+              border-radius: 4px;
+            }
+            .section {
+              margin-bottom: 25px;
+            }
+            .item {
+              margin-bottom: 15px;
+              border-bottom: 1px dashed #ccc;
+              padding-bottom: 10px;
+            }
+            .item-header {
+              display: flex;
+              justify-content: space-between;
+            }
+            .item-title {
+              font-weight: bold;
+              color: #0f766e;
+            }
+            .item-subtitle {
+              font-style: italic;
+            }
+            .item-date {
+              color: #555;
+              font-family: monospace;
+            }
+            .item-description {
+              margin-top: 5px;
+              font-family: 'Courier New', monospace;
+            }
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+            }
+            .skill-item {
+              background-color: #ccfbf1;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 0.9em;
+              color: #0f766e;
+              font-family: 'Courier New', monospace;
+              border: 1px solid #0f766e;
+            }
+            code {
+              font-family: 'Courier New', monospace;
+            }
+          `;
+        
+        default:
+          return `
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            h1 {
+              color: #2563eb;
+              margin-bottom: 5px;
+            }
+            h2 {
+              color: #2563eb;
+              border-bottom: 1px solid #ddd;
+              padding-bottom: 5px;
+              margin-top: 20px;
+            }
+            .contact-info {
+              margin-bottom: 20px;
+              font-size: 0.9em;
+            }
+            .section {
+              margin-bottom: 25px;
+            }
+            .item {
+              margin-bottom: 15px;
+            }
+            .item-header {
+              display: flex;
+              justify-content: space-between;
+            }
+            .item-title {
+              font-weight: bold;
+            }
+            .item-subtitle {
+              font-style: italic;
+              color: #555;
+            }
+            .item-date {
+              color: #555;
+            }
+            .item-description {
+              margin-top: 5px;
+            }
+            .skills-list {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 10px;
+            }
+            .skill-item {
+              background-color: #f0f4ff;
+              padding: 5px 10px;
+              border-radius: 15px;
+              font-size: 0.9em;
+            }
+          `;
+      }
+    };
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${cvData.personalInfo.fullName || 'My'} CV</title>
+        <style>
+          ${getTemplateStyles()}
+          @media print {
+            body {
+              padding: 0;
+              margin: 0;
+            }
+            a {
+              text-decoration: none;
+              color: inherit;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <header>
+          <h1>${cvData.personalInfo.fullName || 'Your Name'}</h1>
+          <div class="contact-info">
+            ${cvData.personalInfo.email ? `Email: ${cvData.personalInfo.email}<br>` : ''}
+            ${cvData.personalInfo.phone ? `Phone: ${cvData.personalInfo.phone}<br>` : ''}
+            ${cvData.personalInfo.address ? `Address: ${cvData.personalInfo.address}<br>` : ''}
+            ${cvData.personalInfo.linkedin ? `LinkedIn: ${cvData.personalInfo.linkedin}<br>` : ''}
+            ${cvData.personalInfo.website ? `Website: ${cvData.personalInfo.website}` : ''}
+          </div>
+        </header>
+
+        <section class="section">
+          <h2>Education</h2>
+          ${cvData.education.map(edu => `
+            <div class="item">
+              <div class="item-header">
+                <div>
+                  <div class="item-title">${edu.institution}</div>
+                  <div class="item-subtitle">${edu.degree} ${edu.fieldOfStudy ? `in ${edu.fieldOfStudy}` : ''}</div>
+                </div>
+                <div class="item-date">${edu.startDate} - ${edu.endDate || 'Present'}</div>
+              </div>
+              ${edu.gpa ? `<div>GPA: ${edu.gpa}</div>` : ''}
+            </div>
+          `).join('')}
+        </section>
+
+        <section class="section">
+          <h2>Work Experience</h2>
+          ${cvData.experience.map(exp => `
+            <div class="item">
+              <div class="item-header">
+                <div>
+                  <div class="item-title">${exp.position}</div>
+                  <div class="item-subtitle">${exp.company}${exp.location ? `, ${exp.location}` : ''}</div>
+                </div>
+                <div class="item-date">${exp.startDate} - ${exp.endDate || 'Present'}</div>
+              </div>
+              <div class="item-description">${exp.description}</div>
+            </div>
+          `).join('')}
+        </section>
+
+        <section class="section">
+          <h2>Skills</h2>
+          <div class="skills-list">
+            ${cvData.skills.map(skill => `
+              <div class="skill-item">${skill}</div>
+            `).join('')}
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Projects</h2>
+          ${cvData.projects.map(project => `
+            <div class="item">
+              <div class="item-title">${project.title}</div>
+              <div class="item-description">${project.description}</div>
+              ${project.technologies ? `<div>Technologies: ${project.technologies}</div>` : ''}
+              ${project.link ? `<div>Link: <a href="${project.link}" target="_blank">${project.link}</a></div>` : ''}
+            </div>
+          `).join('')}
+        </section>
+
+        <section class="section">
+          <h2>Certificates</h2>
+          ${cvData.certificates.map(cert => `
+            <div class="item">
+              <div class="item-header">
+                <div class="item-title">${cert.name}</div>
+                <div class="item-date">${cert.date}</div>
+              </div>
+              <div class="item-subtitle">Issuer: ${cert.issuer}</div>
+              ${cert.link ? `<div>Link: <a href="${cert.link}" target="_blank">${cert.link}</a></div>` : ''}
+            </div>
+          `).join('')}
+        </section>
+
+        <section class="section">
+          <h2>Languages</h2>
+          <div>
+            ${cvData.languages.map(lang => `
+              <div class="item">
+                <strong>${lang.language}</strong> - ${lang.proficiency}
+              </div>
+            `).join('')}
+          </div>
+        </section>
+      </body>
+      </html>
+    `;
+  };
+
+  // Function to add a skill to CV
+  const addSkillToCV = (skill) => {
+    if (!cvData.skills.includes(skill)) {
+      setCvData(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill]
+      }));
+    }
+  };
+  
+  // Function to remove a skill from CV
+  const removeSkillFromCV = (skillToRemove) => {
+    setCvData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }));
   };
 
   const renderContent = () => {
@@ -1919,15 +2637,48 @@ const UserDashboard = () => {
                   )}
                   
                   {appointmentSuccess ? (
-                    <div className="bg-green-900/30 border border-green-700 text-green-400 px-4 py-3 rounded-lg mb-4">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                        <p>Appointment request sent successfully!</p>
+                    <div className="bg-green-900/30 border border-green-700 rounded-lg overflow-hidden">
+                      <div className="bg-green-800/50 px-4 py-3 border-b border-green-700">
+                        <div className="flex items-center">
+                          <CheckCircle className="w-5 h-5 mr-2 text-green-400" />
+                          <p className="font-semibold text-green-300">Appointment Request Sent!</p>
+                        </div>
                       </div>
-                      <p className="mt-2 text-sm">
-                        An email has been sent to {selectedFaculty.name} with your request details.
-                        You will receive a confirmation when the faculty approves your appointment.
-                      </p>
+                      <div className="p-4">
+                        <div className="mb-4 bg-green-900/20 p-3 rounded-lg border border-green-800/50">
+                          <p className="text-green-300 font-medium mb-1">Appointment Details:</p>
+                          <div className="text-green-400 text-sm grid grid-cols-2 gap-x-2 gap-y-1">
+                            <span className="font-medium">Faculty:</span>
+                            <span>{selectedFaculty.name}</span>
+                            <span className="font-medium">Date:</span>
+                            <span>{appointmentData.day}</span>
+                            <span className="font-medium">Time:</span>
+                            <span>{appointmentData.time}</span>
+                            <span className="font-medium">Purpose:</span>
+                            <span>{appointmentData.purpose}</span>
+                          </div>
+                        </div>
+                        <p className="text-green-400 text-sm mb-3">
+                          <span className="bg-green-900/40 py-1 px-2 rounded font-medium text-xs mr-2">✓</span>
+                          A professionally formatted email has been sent to {selectedFaculty.name}
+                        </p>
+                        <p className="text-green-400 text-sm mb-3">
+                          <span className="bg-green-900/40 py-1 px-2 rounded font-medium text-xs mr-2">✓</span>
+                          A copy of the appointment request has been sent to your email
+                        </p>
+                        <p className="text-green-400 text-sm">
+                          <span className="bg-green-900/40 py-1 px-2 rounded font-medium text-xs mr-2">!</span>
+                          Please wait for the faculty's confirmation email
+                        </p>
+                        <div className="mt-4 text-center">
+                          <button
+                            onClick={() => setShowAppointmentModal(false)}
+                            className="px-5 py-2 bg-green-700 hover:bg-green-600 rounded-lg text-white font-medium transition-colors"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1936,22 +2687,14 @@ const UserDashboard = () => {
                         <select
                           name="day"
                           value={appointmentData.day}
-                          onChange={(e) => {
-                            handleAppointmentChange(e);
-                            // Reset time when day changes
-                            const availableTimes = getAvailableTimesForDay(e.target.value);
-                            setAppointmentData(prev => ({
-                              ...prev,
-                              time: availableTimes.length > 0 ? availableTimes[0] : ''
-                            }));
-                          }}
+                          onChange={handleAppointmentChange}
                           className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                           required
                         >
                           <option value="">Select a day</option>
-                          {selectedFaculty.availability?.map((schedule, idx) => (
-                            <option key={idx} value={schedule.day}>
-                              {schedule.day}
+                          {getAllDays().map((day, idx) => (
+                            <option key={idx} value={day}>
+                              {day}
                             </option>
                           ))}
                         </select>
@@ -1959,21 +2702,18 @@ const UserDashboard = () => {
                       
                       <div>
                         <label className="block text-gray-400 mb-1">Select Time</label>
-                        <select
-                          name="time"
-                          value={appointmentData.time}
-                          onChange={handleAppointmentChange}
-                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          disabled={!appointmentData.day}
-                          required
-                        >
-                          <option value="">Select a time slot</option>
-                          {getAvailableTimesForDay(appointmentData.day).map((time, idx) => (
-                            <option key={idx} value={time}>
-                              {time}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="time"
+                            name="time"
+                            value={appointmentData.time}
+                            onChange={handleAppointmentChange}
+                            className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            required
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Choose your preferred appointment time</p>
                       </div>
                       
                       <div>
@@ -2003,6 +2743,115 @@ const UserDashboard = () => {
                           placeholder="Additional details about your appointment request..."
                           className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-24 resize-none"
                         ></textarea>
+                      </div>
+                      
+                      <div className="mt-1 text-right">
+                        <button
+                          onClick={() => {
+                            if (!appointmentData.day || !appointmentData.time || !appointmentData.purpose) {
+                              setAppointmentError('Please fill in all required fields to see a preview');
+                              return;
+                            }
+                            
+                            // Clear any errors
+                            setAppointmentError('');
+                            
+                            // Format the time for better readability
+                            const formatTime = (timeString) => {
+                              if (!timeString) return '';
+                              
+                              try {
+                                // Convert 24-hour format to 12-hour format with AM/PM
+                                const [hours, minutes] = timeString.split(':');
+                                const hour = parseInt(hours, 10);
+                                const ampm = hour >= 12 ? 'PM' : 'AM';
+                                const hour12 = hour % 12 || 12; // Convert 0 to 12
+                                return `${hour12}:${minutes} ${ampm}`;
+                              } catch (e) {
+                                return timeString; // Return original if parsing fails
+                              }
+                            };
+                            
+                            const formattedTime = formatTime(appointmentData.time);
+                            
+                            // Open a small window with email preview
+                            const previewWindow = window.open('', 'Email Preview', 'width=600,height=600');
+                            
+                            // Create the email preview content
+                            previewWindow.document.write(`
+                              <!DOCTYPE html>
+                              <html>
+                              <head>
+                                <title>Email Preview</title>
+                                <style>
+                                  body {
+                                    font-family: Arial, sans-serif;
+                                    line-height: 1.6;
+                                    color: #333;
+                                    max-width: 600px;
+                                    margin: 0 auto;
+                                    padding: 20px;
+                                  }
+                                  .preview-note {
+                                    background-color: #fffaed;
+                                    border: 1px dashed #ffc107;
+                                    padding: 10px;
+                                    text-align: center;
+                                    margin-bottom: 20px;
+                                    border-radius: 5px;
+                                    color: #856404;
+                                  }
+                                  .email-content {
+                                    white-space: pre-wrap;
+                                    background: #f7f7f7;
+                                    padding: 20px;
+                                    border-radius: 5px;
+                                    border: 1px solid #ddd;
+                                    font-family: 'Courier New', monospace;
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="preview-note">
+                                  <strong>Preview Only</strong> - This is how your email will look when sent
+                                </div>
+                                <div class="email-content">
+Dear ${selectedFaculty.name},
+
+I hope this email finds you well. I am writing to request an appointment with you regarding ${appointmentData.purpose}.
+
+APPOINTMENT DETAILS
+--------------------------------------------------
+Requested Date: ${appointmentData.day}
+Requested Time: ${formattedTime}
+Purpose: ${appointmentData.purpose}
+--------------------------------------------------
+
+${appointmentData.message ? `ADDITIONAL INFORMATION:
+${appointmentData.message}
+
+` : ''}Please let me know if this time works for you or if we need to find an alternative. I am flexible and can adjust to your schedule if needed.
+
+Thank you for your time and consideration.
+
+Best regards,
+${userInfo?.name || 'Student'}
+${userInfo?.email || ''}
+${userInfo?.department ? 'Department: ' + userInfo.department : ''}
+${userInfo?.university ? 'University: ' + userInfo.university : ''}
+
+--------------------------------------------------
+This appointment request was sent via the EduHub 2.0 Appointment System.
+                                </div>
+                              </body>
+                              </html>
+                            `);
+                          }}
+                          className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center ml-auto"
+                          type="button"
+                        >
+                          <Eye className="w-3 h-3 mr-1" /> Preview Email
+                        </button>
                       </div>
                       
                       <div className="flex justify-end mt-6">
@@ -2659,6 +3508,550 @@ const UserDashboard = () => {
           />
         );
       
+      case 'cvbuilder':
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <h2 className="text-2xl font-bold text-white">CV Builder</h2>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowCvPreview(true)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium flex items-center"
+                >
+                  <Eye className="w-4 h-4 mr-2" /> Preview CV
+                </button>
+                <button
+                  onClick={exportAsPdf}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-medium flex items-center"
+                >
+                  <Download className="w-4 h-4 mr-2" /> Export as PDF
+                </button>
+                <button
+                  onClick={exportAsWord}
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium flex items-center"
+                >
+                  <FileText className="w-4 h-4 mr-2" /> Export as Word
+                </button>
+              </div>
+            </div>
+            
+            {/* Template Selection */}
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <h3 className="text-xl font-medium text-white mb-4 pb-2 border-b border-gray-700">Choose CV Template</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div 
+                  className={`cursor-pointer rounded-lg border-2 ${selectedCvTemplate === 'modern' ? 'border-cyan-500' : 'border-gray-700'} p-2 transition-all hover:border-cyan-500`}
+                  onClick={() => setSelectedCvTemplate('modern')}
+                >
+                  <div className="bg-gray-700 rounded p-2 text-center h-32 flex flex-col">
+                    <div className="h-6 w-24 bg-blue-500 rounded mx-auto mb-2"></div>
+                    <div className="space-y-1">
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-3/4"></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-600">
+                      <div className="h-2 w-16 bg-blue-500 rounded"></div>
+                      <div className="mt-1 space-y-1">
+                        <div className="h-2 bg-gray-500 rounded w-full"></div>
+                        <div className="h-2 bg-gray-500 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-sm text-gray-300 font-medium">Modern</p>
+                </div>
+                
+                <div 
+                  className={`cursor-pointer rounded-lg border-2 ${selectedCvTemplate === 'minimal' ? 'border-cyan-500' : 'border-gray-700'} p-2 transition-all hover:border-cyan-500`}
+                  onClick={() => setSelectedCvTemplate('minimal')}
+                >
+                  <div className="bg-gray-700 rounded p-2 text-center h-32 flex flex-col">
+                    <div className="h-6 w-24 bg-gray-500 rounded mx-auto mb-2"></div>
+                    <div className="space-y-1">
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-3/4"></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-600">
+                      <div className="h-2 w-16 bg-gray-500 rounded"></div>
+                      <div className="mt-1 space-y-1">
+                        <div className="h-2 bg-gray-500 rounded w-full"></div>
+                        <div className="h-2 bg-gray-500 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-sm text-gray-300 font-medium">Minimal</p>
+                </div>
+                
+                <div 
+                  className={`cursor-pointer rounded-lg border-2 ${selectedCvTemplate === 'creative' ? 'border-cyan-500' : 'border-gray-700'} p-2 transition-all hover:border-cyan-500`}
+                  onClick={() => setSelectedCvTemplate('creative')}
+                >
+                  <div className="bg-gray-700 rounded p-2 text-center h-32 flex flex-col">
+                    <div className="h-6 w-24 bg-purple-500 rounded-full mx-auto mb-2"></div>
+                    <div className="space-y-1">
+                      <div className="h-2 bg-gray-500 rounded-full w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded-full w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded-full w-3/4"></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-600">
+                      <div className="h-2 w-16 bg-purple-500 rounded-full"></div>
+                      <div className="mt-1 space-y-1">
+                        <div className="h-2 bg-gray-500 rounded-full w-full"></div>
+                        <div className="h-2 bg-gray-500 rounded-full w-2/3"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-sm text-gray-300 font-medium">Creative</p>
+                </div>
+                
+                <div 
+                  className={`cursor-pointer rounded-lg border-2 ${selectedCvTemplate === 'professional' ? 'border-cyan-500' : 'border-gray-700'} p-2 transition-all hover:border-cyan-500`}
+                  onClick={() => setSelectedCvTemplate('professional')}
+                >
+                  <div className="bg-gray-700 rounded p-2 text-center h-32 flex flex-col">
+                    <div className="h-6 w-24 bg-green-800 rounded mx-auto mb-2"></div>
+                    <div className="space-y-1">
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-3/4"></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-600">
+                      <div className="h-2 w-16 bg-green-800 rounded"></div>
+                      <div className="mt-1 space-y-1">
+                        <div className="h-2 bg-gray-500 rounded w-full"></div>
+                        <div className="h-2 bg-gray-500 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-sm text-gray-300 font-medium">Professional</p>
+                </div>
+                
+                <div 
+                  className={`cursor-pointer rounded-lg border-2 ${selectedCvTemplate === 'technical' ? 'border-cyan-500' : 'border-gray-700'} p-2 transition-all hover:border-cyan-500`}
+                  onClick={() => setSelectedCvTemplate('technical')}
+                >
+                  <div className="bg-gray-700 rounded p-2 text-center h-32 flex flex-col">
+                    <div className="h-6 w-24 bg-teal-700 rounded mx-auto mb-2"></div>
+                    <div className="space-y-1">
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-full"></div>
+                      <div className="h-2 bg-gray-500 rounded w-3/4"></div>
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-gray-600">
+                      <div className="h-2 w-16 bg-teal-700 rounded"></div>
+                      <div className="mt-1 space-y-1">
+                        <div className="h-2 bg-gray-500 rounded w-full"></div>
+                        <div className="h-2 bg-gray-500 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-sm text-gray-300 font-medium">Technical</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+              <div className="mb-8">
+                <h3 className="text-xl font-medium text-white mb-4 pb-2 border-b border-gray-700">Personal Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-400 mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={cvData.personalInfo.fullName}
+                      onChange={(e) => handleCvDataChange('personalInfo', { fullName: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={cvData.personalInfo.email}
+                      onChange={(e) => handleCvDataChange('personalInfo', { email: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="john.doe@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={cvData.personalInfo.phone}
+                      onChange={(e) => handleCvDataChange('personalInfo', { phone: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="+1 123-456-7890"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-1">Address</label>
+                    <input
+                      type="text"
+                      value={cvData.personalInfo.address}
+                      onChange={(e) => handleCvDataChange('personalInfo', { address: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="City, Country"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-1">LinkedIn</label>
+                    <input
+                      type="text"
+                      value={cvData.personalInfo.linkedin}
+                      onChange={(e) => handleCvDataChange('personalInfo', { linkedin: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="linkedin.com/in/johndoe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 mb-1">Website/Portfolio</label>
+                    <input
+                      type="text"
+                      value={cvData.personalInfo.website}
+                      onChange={(e) => handleCvDataChange('personalInfo', { website: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      placeholder="johndoe.com"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Education Section */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
+                  <h3 className="text-xl font-medium text-white">Education</h3>
+                  <button
+                    onClick={() => addCvItem('education')}
+                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium text-gray-300 flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Add Education
+                  </button>
+                </div>
+                
+                {cvData.education.map((edu, index) => (
+                  <div key={edu.id} className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                    <div className="flex justify-between">
+                      <h4 className="text-lg font-medium text-cyan-400 mb-3">Education #{index + 1}</h4>
+                      <button
+                        onClick={() => removeCvItem('education', edu.id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 mb-1">Institution</label>
+                        <input
+                          type="text"
+                          value={edu.institution}
+                          onChange={(e) => handleCvDataChange('education', { institution: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="University Name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Degree</label>
+                        <input
+                          type="text"
+                          value={edu.degree}
+                          onChange={(e) => handleCvDataChange('education', { degree: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Bachelor of Science"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Field of Study</label>
+                        <input
+                          type="text"
+                          value={edu.fieldOfStudy}
+                          onChange={(e) => handleCvDataChange('education', { fieldOfStudy: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Computer Science"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">GPA</label>
+                        <input
+                          type="text"
+                          value={edu.gpa}
+                          onChange={(e) => handleCvDataChange('education', { gpa: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="3.8/4.0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Start Date</label>
+                        <input
+                          type="text"
+                          value={edu.startDate}
+                          onChange={(e) => handleCvDataChange('education', { startDate: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Sep 2018"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">End Date</label>
+                        <input
+                          type="text"
+                          value={edu.endDate}
+                          onChange={(e) => handleCvDataChange('education', { endDate: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Jun 2022 (or Present)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Experience Section */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
+                  <h3 className="text-xl font-medium text-white">Work Experience</h3>
+                  <button
+                    onClick={() => addCvItem('experience')}
+                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium text-gray-300 flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Add Experience
+                  </button>
+                </div>
+                
+                {cvData.experience.map((exp, index) => (
+                  <div key={exp.id} className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                    <div className="flex justify-between">
+                      <h4 className="text-lg font-medium text-cyan-400 mb-3">Experience #{index + 1}</h4>
+                      <button
+                        onClick={() => removeCvItem('experience', exp.id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 mb-1">Company/Organization</label>
+                        <input
+                          type="text"
+                          value={exp.company}
+                          onChange={(e) => handleCvDataChange('experience', { company: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Company Name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Position</label>
+                        <input
+                          type="text"
+                          value={exp.position}
+                          onChange={(e) => handleCvDataChange('experience', { position: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Software Engineer"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Location</label>
+                        <input
+                          type="text"
+                          value={exp.location}
+                          onChange={(e) => handleCvDataChange('experience', { location: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="City, Country"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-gray-400 mb-1">Start Date</label>
+                          <input
+                            type="text"
+                            value={exp.startDate}
+                            onChange={(e) => handleCvDataChange('experience', { startDate: e.target.value }, index)}
+                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            placeholder="Jan 2021"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-400 mb-1">End Date</label>
+                          <input
+                            type="text"
+                            value={exp.endDate}
+                            onChange={(e) => handleCvDataChange('experience', { endDate: e.target.value }, index)}
+                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                            placeholder="Present"
+                          />
+                        </div>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-400 mb-1">Description</label>
+                        <textarea
+                          value={exp.description}
+                          onChange={(e) => handleCvDataChange('experience', { description: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-24 resize-none"
+                          placeholder="Describe your responsibilities and achievements..."
+                        ></textarea>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Skills Section */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
+                  <h3 className="text-xl font-medium text-white">Skills</h3>
+                </div>
+                
+                <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="mb-4">
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={skillInput}
+                        onChange={(e) => setSkillInput(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        placeholder="Add a skill (e.g., JavaScript, React, Leadership)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && skillInput.trim()) {
+                            addSkillToCV(skillInput.trim());
+                            setSkillInput('');
+                            e.preventDefault();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (skillInput.trim()) {
+                            addSkillToCV(skillInput.trim());
+                            setSkillInput('');
+                          }
+                        }}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Press Enter to add a skill</p>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {cvData.skills.map((skill, index) => (
+                      <div 
+                        key={index}
+                        className="bg-gray-700 text-gray-300 px-3 py-1 rounded-full text-sm flex items-center group"
+                      >
+                        {skill}
+                        <button
+                          onClick={() => removeSkillFromCV(skill)}
+                          className="ml-2 text-gray-400 hover:text-red-400"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {cvData.skills.length === 0 && (
+                      <p className="text-gray-500 text-sm">No skills added yet. Add your technical and soft skills above.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Projects Section */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
+                  <h3 className="text-xl font-medium text-white">Projects</h3>
+                  <button
+                    onClick={() => addCvItem('projects')}
+                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-md text-sm font-medium text-gray-300 flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> Add Project
+                  </button>
+                </div>
+                
+                {cvData.projects.map((project, index) => (
+                  <div key={project.id} className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                    <div className="flex justify-between">
+                      <h4 className="text-lg font-medium text-cyan-400 mb-3">Project #{index + 1}</h4>
+                      <button
+                        onClick={() => removeCvItem('projects', project.id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 mb-1">Project Title</label>
+                        <input
+                          type="text"
+                          value={project.title}
+                          onChange={(e) => handleCvDataChange('projects', { title: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="Project Name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Technologies Used</label>
+                        <input
+                          type="text"
+                          value={project.technologies}
+                          onChange={(e) => handleCvDataChange('projects', { technologies: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="React, Node.js, MongoDB"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-gray-400 mb-1">Project Description</label>
+                        <textarea
+                          value={project.description}
+                          onChange={(e) => handleCvDataChange('projects', { description: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 h-24 resize-none"
+                          placeholder="Describe what the project does and your role in it..."
+                        ></textarea>
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 mb-1">Project Link</label>
+                        <input
+                          type="text"
+                          value={project.link}
+                          onChange={(e) => handleCvDataChange('projects', { link: e.target.value }, index)}
+                          className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          placeholder="https://github.com/yourusername/project"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Use profile data to fill CV */}
+              <div className="mt-8 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                <button
+                  onClick={() => {
+                    // Prefill from profile data
+                    setCvData(prev => ({
+                      ...prev,
+                      personalInfo: {
+                        ...prev.personalInfo,
+                        fullName: profileData.fullName || userInfo?.name || '',
+                        email: profileData.email || userInfo?.email || '',
+                        phone: profileData.phoneNumber || '',
+                        linkedin: profileData.linkedin || '',
+                      },
+                      skills: [...profileData.skills]
+                    }));
+                  }}
+                  className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white font-medium flex items-center justify-center"
+                >
+                  <User className="w-4 h-4 mr-2" /> Use Profile Data to Fill CV
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      
       default:
         return null;
     }
@@ -2793,6 +4186,26 @@ const UserDashboard = () => {
                   {!sidebarCollapsed && <span>External Courses</span>}
                 </button>
               </li>
+              <li>
+                <button 
+                  onClick={() => setActiveTab('cvbuilder')}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'cvbuilder' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  title="CV Builder"
+                >
+                  <FileText className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>CV Builder</span>}
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigate('/job-search-by-cv')}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors text-gray-400`}
+                  title="Job Search by CV"
+                >
+                  <Briefcase className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>Job Search by CV</span>}
+                </button>
+              </li>
             </ul>
             
             <div className="px-3 py-4 mt-8">
@@ -2856,6 +4269,7 @@ const UserDashboard = () => {
               {activeTab === 'profile' && <User className="mr-2 w-5 h-5" />}
               {activeTab === 'growth' && <TrendingUp className="mr-2 w-5 h-5" />}
               {activeTab === 'community' && <MessageCircle className="mr-2 w-5 h-5" />}
+              {activeTab === 'cvbuilder' && <FileText className="mr-2 w-5 h-5" />}
               {activeTab}
             </h2>
             <div className="flex items-center">
@@ -2997,6 +4411,72 @@ const UserDashboard = () => {
                   'Change Password'
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* CV Preview Modal */}
+      {showCvPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-4xl p-1 relative">
+            <div className="sticky top-0 bg-gray-800 p-4 rounded-t-lg flex justify-between items-center">
+              <h3 className="text-lg font-medium text-white">CV Preview - {selectedCvTemplate.charAt(0).toUpperCase() + selectedCvTemplate.slice(1)} Template</h3>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowCvPreview(false)}
+                  className="text-gray-400 hover:text-white focus:outline-none"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="h-[calc(100vh-150px)] overflow-y-auto bg-white">
+              <iframe
+                srcDoc={generateCvHtml()}
+                className="w-full h-full border-none"
+                title="CV Preview"
+              />
+            </div>
+            
+            <div className="sticky bottom-0 bg-gray-800 p-4 rounded-b-lg flex justify-between items-center">
+              <div className="flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-300 text-sm">Template:</span>
+                  <select 
+                    value={selectedCvTemplate}
+                    onChange={(e) => setSelectedCvTemplate(e.target.value)}
+                    className="bg-gray-700 border border-gray-600 rounded text-white text-sm px-2 py-1"
+                  >
+                    <option value="modern">Modern</option>
+                    <option value="minimal">Minimal</option>
+                    <option value="creative">Creative</option>
+                    <option value="professional">Professional</option>
+                    <option value="technical">Technical</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={exportAsPdf}
+                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm text-white font-medium flex items-center"
+                >
+                  <Download className="w-3 h-3 mr-1" /> PDF
+                </button>
+                <button
+                  onClick={exportAsWord}
+                  className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 rounded text-sm text-white font-medium flex items-center"
+                >
+                  <FileText className="w-3 h-3 mr-1" /> Word
+                </button>
+                <button
+                  onClick={() => setShowCvPreview(false)}
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300 font-medium"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
