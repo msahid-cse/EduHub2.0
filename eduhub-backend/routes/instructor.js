@@ -4,10 +4,12 @@ import {
   getInstructorById, 
   createInstructor, 
   updateInstructor, 
-  deleteInstructor 
+  deleteInstructor,
+  uploadInstructorData,
+  addInstructorsManually
 } from '../controllers/instructorController.js';
 import { auth, adminOnly } from '../middleware/auth.js';
-import { uploadProfilePicture } from '../middleware/upload.js';
+import { uploadProfilePicture, uploadInstructorData as uploadInstructorDataMiddleware } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -25,6 +27,16 @@ router.get('/:id', getInstructorById);
 // @desc    Create a new instructor
 // @access  Private/Admin
 router.post('/', auth, adminOnly, uploadProfilePicture, createInstructor);
+
+// @route   POST /api/instructors/upload
+// @desc    Upload instructor data (Excel/CSV)
+// @access  Private/Admin
+router.post('/upload', auth, adminOnly, uploadInstructorDataMiddleware, uploadInstructorData);
+
+// @route   POST /api/instructors/add-manually
+// @desc    Add instructors manually
+// @access  Private/Admin
+router.post('/add-manually', auth, adminOnly, addInstructorsManually);
 
 // @route   PUT /api/instructors/:id
 // @desc    Update an instructor

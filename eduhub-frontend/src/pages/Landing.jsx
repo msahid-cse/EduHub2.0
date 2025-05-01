@@ -31,7 +31,8 @@ import {
   MoveRight,
   Brain,
   Video,
-  FileText
+  FileText,
+  Search
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
@@ -600,6 +601,11 @@ const TeacherSection = ({ instructors, universities, selectedUniversity, setSele
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userUniversity, setUserUniversity] = useState('');
+  const [viewAll, setViewAll] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const [departments, setDepartments] = useState([]);
+  const DEFAULT_PROFILE_IMAGE = 'https://thumbs.dreamstime.com/b/teacher-instructor-colorful-icon-vector-flat-sign-presenter-symbol-logo-illustration-94324489.jpg';
   
   useEffect(() => {
     // Check authentication status
@@ -630,13 +636,41 @@ const TeacherSection = ({ instructors, universities, selectedUniversity, setSele
     }
   }, [setSelectedUniversity]);
   
-  // Filter instructors by the selected university
-  const filteredInstructors = instructors.filter(instructor => 
-    !selectedUniversity || instructor.university === selectedUniversity
-  );
+  // Extract unique departments from instructors
+  useEffect(() => {
+    if (instructors.length > 0) {
+      const uniqueDepartments = [...new Set(instructors.map(instructor => instructor.department))];
+      setDepartments(uniqueDepartments.filter(Boolean));
+    }
+  }, [instructors]);
+  
+  // Filter instructors by university, search query, and department
+  const filteredInstructors = instructors.filter(instructor => {
+    // University filter
+    const matchesUniversity = !selectedUniversity || instructor.university === selectedUniversity;
+    
+    // Search filter
+    const matchesSearch = !searchQuery || 
+      instructor.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      instructor.position?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      instructor.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      instructor.code?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Department filter
+    const matchesDepartment = !filterDepartment || instructor.department === filterDepartment;
+    
+    return matchesUniversity && matchesSearch && matchesDepartment;
+  });
+  
+  // Show only first 4 instructors unless viewAll is true
+  const displayedInstructors = viewAll ? filteredInstructors : filteredInstructors.slice(0, 4);
   
   const handleLogin = () => {
     navigate('/login');
+  };
+  
+  const handleViewAllToggle = () => {
+    setViewAll(!viewAll);
   };
   
   return (
@@ -657,36 +691,107 @@ const TeacherSection = ({ instructors, universities, selectedUniversity, setSele
           ) : (
             <div>
               <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl border border-gray-700 mb-8">
-                <h3 className="text-xl font-bold text-white mb-4">Instructors from {userUniversity}</h3>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                  <h3 className="text-xl font-bold text-white mb-4 md:mb-0">Instructors from {userUniversity}</h3>
+                  
+                  <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+                    {/* Search bar */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search instructors..."
+                        className="bg-gray-700 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2 w-full md:w-64 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                      />
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    </div>
+                    
+                    {/* Department filter */}
+                    <select
+                      value={filterDepartment}
+                      onChange={(e) => setFilterDepartment(e.target.value)}
+                      className="bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    >
+                      <option value="">All Departments</option>
+                      {departments.map((dept, index) => (
+                        <option key={index} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 
                 {filteredInstructors.length === 0 ? (
-                  <p className="text-gray-400">No instructors available from this university yet.</p>
+                  <p className="text-gray-400">No instructors available based on your filters.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {filteredInstructors.map((instructor, index) => (
-                      <div key={index} className="bg-gray-900/80 p-5 rounded-lg border border-gray-700 transition-all duration-300 hover:shadow-lg hover:border-cyan-900">
-                        <div className="flex items-center mb-4">
-                          <div className="w-16 h-16 rounded-full overflow-hidden mr-4 border-2 border-cyan-500/30">
-                            <img 
-                              src={instructor.profilePicture || 'https://via.placeholder.com/150?text=Instructor'} 
-                              alt={instructor.name}
-                              className="w-full h-full object-cover"
-                            />
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {displayedInstructors.map((instructor, index) => (
+                        <div key={index} className="bg-gray-900/80 p-5 rounded-lg border border-gray-700 transition-all duration-300 hover:shadow-lg hover:border-cyan-900">
+                          <div className="flex items-center mb-4">
+                            <div className="w-16 h-16 rounded-full overflow-hidden mr-4 border-2 border-cyan-500/30">
+                              <img 
+                                src={instructor.profilePicture || DEFAULT_PROFILE_IMAGE} 
+                                alt={instructor.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = DEFAULT_PROFILE_IMAGE;
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-semibold text-white">{instructor.name}</h4>
+                              <p className="text-cyan-400 text-sm">{instructor.position}</p>
+                              {instructor.code && (
+                                <p className="text-gray-400 text-xs">Code: {instructor.code}</p>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="text-lg font-semibold text-white">{instructor.name}</h4>
-                            <p className="text-cyan-400 text-sm">{instructor.position}</p>
+                          <p className="text-gray-400 text-sm mb-3 line-clamp-2">{instructor.bio || 'Experienced instructor specializing in various academic subjects.'}</p>
+                          
+                          <div className="mb-3">
+                            <span className="text-xs px-2 py-1 mr-2 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                              {instructor.department}
+                            </span>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+                            {instructor.roomNo && (
+                              <div className="flex items-center">
+                                <span className="bg-gray-800 px-2 py-1 rounded">Room: {instructor.roomNo}</span>
+                              </div>
+                            )}
+                            
+                            {instructor.deskNo && (
+                              <div className="flex items-center">
+                                <span className="bg-gray-800 px-2 py-1 rounded">Desk: {instructor.deskNo}</span>
+                              </div>
+                            )}
+                            
+                            {instructor.email && (
+                              <div className="flex items-center mt-1 w-full">
+                                <span className="bg-gray-800 px-2 py-1 rounded truncate w-full" title={instructor.email}>
+                                  {instructor.email}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <p className="text-gray-400 text-sm mb-3 line-clamp-2">{instructor.bio || 'Experienced instructor specializing in various academic subjects.'}</p>
-                        <div>
-                          <span className="text-xs px-2 py-1 mr-2 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                            {instructor.department}
-                          </span>
-                        </div>
+                      ))}
+                    </div>
+                    
+                    {filteredInstructors.length > 4 && (
+                      <div className="mt-8 text-center">
+                        <button 
+                          onClick={handleViewAllToggle}
+                          className="px-5 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors border border-cyan-500/30"
+                        >
+                          {viewAll ? 'Show Less' : `View All Instructors (${filteredInstructors.length})`}
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

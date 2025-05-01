@@ -6,9 +6,10 @@ import fs from 'fs';
 const cvUploadDir = './uploads/cvs';
 const profileUploadDir = './uploads/profiles';
 const courseUploadDir = './uploads/courses';
+const instructorDataDir = './uploads/instructors';
 
 // Create directories if they don't exist
-[cvUploadDir, profileUploadDir, courseUploadDir].forEach(dir => {
+[cvUploadDir, profileUploadDir, courseUploadDir, instructorDataDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -50,6 +51,18 @@ const courseStorage = multer.diskStorage({
   }
 });
 
+// Configure storage for instructor data files (Excel/CSV)
+const instructorDataStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, instructorDataDir);
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
 // File filter for CV uploads
 const cvFilter = (req, file, cb) => {
   // Accept only PDF files
@@ -67,6 +80,20 @@ const imageFilter = (req, file, cb) => {
     cb(null, true);
   } else {
     cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+// File filter for instructor data uploads (xlsx, csv)
+const instructorDataFilter = (req, file, cb) => {
+  // Accept only Excel and CSV files
+  if (
+    file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || // xlsx
+    file.mimetype === 'application/vnd.ms-excel' || // xls
+    file.mimetype === 'text/csv' // csv
+  ) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only Excel (xlsx/xls) and CSV files are allowed!'), false);
   }
 };
 
@@ -95,10 +122,19 @@ const courseUpload = multer({
   fileFilter: imageFilter
 });
 
+const instructorDataUpload = multer({
+  storage: instructorDataStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max file size
+  },
+  fileFilter: instructorDataFilter
+});
+
 // Export middlewares
 export const uploadCV = cvUpload.single('cv');
 export const uploadProfilePicture = profileUpload.single('profilePicture');
 export const uploadCourseThumbnail = courseUpload.single('thumbnail');
+export const uploadInstructorData = instructorDataUpload.single('instructorData');
 
 // Combined upload object for more flexibility
 export const upload = {
@@ -110,6 +146,8 @@ export const upload = {
         return profileUpload.single('profilePicture');
       case 'thumbnail':
         return courseUpload.single('thumbnail');
+      case 'instructorData':
+        return instructorDataUpload.single('instructorData');
       default:
         return cvUpload.single(fieldName);
     }
@@ -120,5 +158,6 @@ export default {
   uploadCV,
   uploadProfilePicture,
   uploadCourseThumbnail,
+  uploadInstructorData,
   upload
 }; 

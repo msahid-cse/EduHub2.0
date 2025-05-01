@@ -25,6 +25,18 @@ const instructorSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  code: {
+    type: String,
+    trim: true
+  },
+  roomNo: {
+    type: String,
+    trim: true
+  },
+  deskNo: {
+    type: String,
+    trim: true
+  },
   bio: {
     type: String,
     default: ''

@@ -103,6 +103,38 @@ const communityAPI = {
   checkAdminStatus: () => apiClient.get('/community/admin/check'),
 };
 
+// Instructor service endpoints
+const instructorService = {
+  getAllInstructors: (university) => {
+    const params = university ? { university } : {};
+    return apiClient.get('/instructors', { params });
+  },
+  getInstructorById: (id) => apiClient.get(`/instructors/${id}`),
+  createInstructor: (formData) => {
+    return apiClient.post('/instructors', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+  },
+  uploadInstructorData: (formData) => {
+    return apiClient.post('/instructors/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+  },
+  addInstructorsManually: (data) => apiClient.post('/instructors/add-manually', data),
+  updateInstructor: (id, formData) => {
+    return apiClient.put(`/instructors/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+  },
+  deleteInstructor: (id) => apiClient.delete(`/instructors/${id}`),
+};
+
 // API service functions
 const authService = {
   login: (email, password) => apiClient.post('/auth/login', { email, password }),
@@ -165,4 +197,5 @@ export {
   noticeService,
   jobService,
   communityAPI,
+  instructorService
 }; 
