@@ -260,8 +260,9 @@ export const login = async (req, res) => {
 
     // Admin credentials check
     if (email === 'admin@eduhub.com' && password === 'admin123') {
+      const adminId = '000000000000000000000000';
       const token = jwt.sign(
-        { userId: '000000000000000000000000', role: 'admin' },
+        { userId: adminId, role: 'admin' },
         JWT_SECRET,
         { expiresIn: '7d' }
       );
@@ -273,7 +274,9 @@ export const login = async (req, res) => {
           email: 'admin@eduhub.com',
           role: 'admin',
           name: 'Admin',
-          userId: '000000000000000000000000'
+          _id: adminId,
+          id: adminId,
+          userId: adminId
         }
       });
     }
@@ -310,7 +313,9 @@ export const login = async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
+        id: user._id.toString(),
+        _id: user._id.toString(),
+        userId: user._id.toString(),
         name: user.name,
         email: user.email,
         role: user.role,

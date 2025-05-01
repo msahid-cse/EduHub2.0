@@ -67,9 +67,20 @@ const communityAPI = {
   // Get all users (admin only)
   getAllUsers: () => apiClient.get('/community/users'),
   
+  // Alternative method to get all users for admin
+  getAdminUsers: () => apiClient.get('/community/admin/users'),
+  
+  // Get global community members (all users regardless of university)
+  getGlobalMembers: () => apiClient.get('/community/global/members'),
+  
   // Send a message to another user
-  sendMessage: (receiverId, content, attachment = null) => 
-    apiClient.post('/community/messages', { receiverId, content, attachment }),
+  sendMessage: (receiverId, content, attachment = null, isGlobal = false) => 
+    apiClient.post('/community/messages', { 
+      receiverId, 
+      content, 
+      attachment,
+      global: isGlobal
+    }),
   
   // Get conversation with another user
   getConversation: (userId) => apiClient.get(`/community/messages/${userId}`),
@@ -86,7 +97,10 @@ const communityAPI = {
         'Content-Type': 'multipart/form-data',
       }
     });
-  }
+  },
+  
+  // Check admin status
+  checkAdminStatus: () => apiClient.get('/community/admin/check'),
 };
 
 // API service functions

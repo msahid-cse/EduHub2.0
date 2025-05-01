@@ -15,7 +15,9 @@ import {
   sendMessage,
   getConversation,
   getUnreadCount,
-  uploadAttachment
+  uploadAttachment,
+  getGlobalCommunityMembers,
+  checkAdminStatus
 } from '../controllers/communityController.js';
 
 const router = express.Router();
@@ -78,6 +80,16 @@ router.get('/members', authMiddleware, getUniversityMembers);
 // @access  Private (Admin)
 router.get('/users', authMiddleware, adminMiddleware, getAllUsers);
 
+// @route   GET /api/community/admin/users
+// @desc    Alternative endpoint to get all users for admin dashboard
+// @access  Private (checks admin role in controller)
+router.get('/admin/users', authMiddleware, getAllUsers);
+
+// @route   GET /api/community/global/members
+// @desc    Get all users for global community
+// @access  Private
+router.get('/global/members', authMiddleware, getGlobalCommunityMembers);
+
 // @route   POST /api/community/messages
 // @desc    Send a message
 // @access  Private
@@ -97,5 +109,10 @@ router.get('/messages/unread/count', authMiddleware, getUnreadCount);
 // @desc    Upload a file attachment
 // @access  Private
 router.post('/upload', authMiddleware, upload.single('file'), uploadAttachment);
+
+// @route   GET /api/community/admin/check
+// @desc    Check if user has admin access
+// @access  Private
+router.get('/admin/check', authMiddleware, checkAdminStatus);
 
 export default router; 

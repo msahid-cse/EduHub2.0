@@ -49,30 +49,69 @@ export const createPost = async (req, res) => {
   try {
     const { content, media, isGlobal = false } = req.body;
     
+    console.log('Create post request:', { content, isGlobal, userId: req.user.userId });
+    
+    if (!content) {
+      return res.status(400).json({ message: 'Content is required for a post' });
+    }
+    
+    // Check if userId exists in the request
+    if (!req.user || !req.user.userId) {
+      console.error('No userId found in request:', req.user);
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
     const user = await User.findById(req.user.userId);
     if (!user) {
+      console.error('User not found with ID:', req.user.userId);
+      
+      // For admin posts, create a default admin user object to prevent errors
+      if (req.user.role === 'admin') {
+        console.log('Creating admin post with default admin user');
+        
+        const post = new Post({
+          userId: req.user.userId,
+          userName: "Admin",
+          university: "Admin",
+          isGlobal: true,
+          content,
+          media: media || ''
+        });
+        
+        const savedPost = await post.save();
+        console.log('Admin post saved successfully:', { postId: savedPost._id });
+        return res.status(201).json(savedPost);
+      }
+      
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Only admins can post global posts
-    if (isGlobal && user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can create global posts' });
-    }
+    console.log('User found:', { id: user._id, name: user.name, role: user.role });
 
-    const post = new Post({
+    // Any user can post to the global community
+    const postData = {
       userId: req.user.userId,
       userName: user.name,
-      university: user.university,
+      university: user.university || 'Global',
       isGlobal,
       content,
       media: media || ''
-    });
+    };
+    
+    console.log('Creating post with data:', postData);
+    const post = new Post(postData);
 
-    await post.save();
-    res.status(201).json(post);
+    const savedPost = await post.save();
+    console.log('Post saved successfully:', { postId: savedPost._id });
+    res.status(201).json(savedPost);
   } catch (error) {
     console.error('Error creating post:', error);
-    res.status(500).json({ message: 'Server error while creating post' });
+    // More detailed error response
+    res.status(500).json({ 
+      message: 'Server error while creating post',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -158,12 +197,27 @@ export const getAllUsers = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Only admins can access all users
-    if (user.role !== 'admin') {
+    // Check if this is the admin route
+    const isAdminRoute = req.originalUrl.includes('/admin/users');
+    
+    // If using standard route with middleware, the role check is already done
+    // If using the alternative route, we need to check the role here
+    if (!isAdminRoute && user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized access' });
     }
     
-    // Find all users except current user
+    // For alternative route, verify user is admin
+    if (isAdminRoute && user.role !== 'admin') {
+      console.log('Non-admin user attempted to access admin users list:', { userId: user._id, role: user.role });
+      // For alternative route, return global members instead of error for non-admins
+      const members = await User.find({ 
+        _id: { $ne: req.user.userId }
+      }).select('_id name profilePicture department university');
+      
+      return res.status(200).json(members);
+    }
+    
+    // Find all users except current user (with admin-specific fields)
     const users = await User.find({ 
       _id: { $ne: req.user.userId } 
     }).select('_id name profilePicture department university role');
@@ -213,9 +267,16 @@ export const sendMessage = async (req, res) => {
       return res.status(404).json({ message: 'Receiver not found' });
     }
 
-    // Check if receiver is from the same university or sender is admin
-    if (sender.university !== receiver.university && sender.role !== 'admin') {
-      return res.status(403).json({ message: 'You can only message users from your university' });
+    // Allow global communication - users can message anyone
+    // If both users are from the same university or the sender is admin, the message is allowed
+    // Otherwise, check if this is a global communication intent
+    const isGlobalCommunication = req.query.global === 'true' || req.body.global === true;
+    
+    if (sender.university !== receiver.university && sender.role !== 'admin' && !isGlobalCommunication) {
+      return res.status(403).json({ 
+        message: 'You can only message users from your university or global community',
+        globalRequired: true
+      });
     }
 
     const message = new Message({
@@ -312,5 +373,65 @@ export const uploadAttachment = async (req, res) => {
   } catch (error) {
     console.error('Error uploading attachment:', error);
     res.status(500).json({ message: 'Server error while uploading attachment' });
+  }
+};
+
+// Get all users for global community
+export const getGlobalCommunityMembers = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Find all users except current user, regardless of university
+    const members = await User.find({ 
+      _id: { $ne: req.user.userId }
+    }).select('_id name profilePicture department university');
+    
+    res.status(200).json(members);
+  } catch (error) {
+    console.error('Error fetching global community members:', error);
+    res.status(500).json({ message: 'Server error while fetching global community members' });
+  }
+};
+
+// Check if user has admin access
+export const checkAdminStatus = async (req, res) => {
+  try {
+    // Short-circuit if the token already has an admin role
+    if (req.user && req.user.role === 'admin') {
+      return res.status(200).json({ 
+        isAdmin: true,
+        role: 'admin',
+        userId: req.user.userId,
+        name: req.user.name || 'Admin',
+        tokenData: req.user
+      });
+    }
+    
+    // Otherwise check the database
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      console.error('Check admin status: User not found with ID:', req.user.userId);
+      return res.status(200).json({ 
+        isAdmin: false,
+        error: 'User not found',
+        userId: req.user.userId
+      });
+    }
+    
+    const isAdmin = user.role === 'admin';
+    
+    res.status(200).json({ 
+      isAdmin,
+      role: user.role,
+      userId: user._id,
+      name: user.name,
+      university: user.university
+    });
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    res.status(500).json({ message: 'Server error while checking admin status' });
   }
 }; 

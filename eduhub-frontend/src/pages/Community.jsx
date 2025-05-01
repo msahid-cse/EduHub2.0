@@ -103,11 +103,25 @@ const Community = () => {
     }
   };
 
-  // Fetch users for chat based on user role
+  // New function to fetch global community members
+  const fetchGlobalMembers = async () => {
+    try {
+      const response = await communityAPI.getGlobalMembers();
+      setAllUsers(response.data);
+    } catch (error) {
+      console.error('Error fetching global community members:', error);
+      // Fall back to university members if global fetch fails
+      fetchUniversityMembers();
+    }
+  };
+
+  // Fetch users for chat based on active section
   useEffect(() => {
     if (activeSection === 'chat') {
       if (isAdmin) {
         fetchAllUsers();
+      } else if (activeSection === 'global') {
+        fetchGlobalMembers();
       } else {
         fetchUniversityMembers();
       }
@@ -217,7 +231,7 @@ const Community = () => {
       const postData = {
         content: newPostContent,
         media: postImage || '',
-        isGlobal: activeSection === 'global' && isAdmin
+        isGlobal: activeSection === 'global'
       };
 
       const response = await communityAPI.createPost(postData);
@@ -290,10 +304,14 @@ const Community = () => {
     if ((!newMessage.trim() && !fileAttachment) || !selectedUser) return;
 
     try {
+      // Determine if this is global communication
+      const isGlobalCommunication = activeSection === 'global';
+      
       const response = await communityAPI.sendMessage(
         selectedUser._id, 
         newMessage || 'Sent an attachment', 
-        fileAttachment
+        fileAttachment,
+        isGlobalCommunication
       );
       
       setMessages([...messages, response.data]);
@@ -305,7 +323,22 @@ const Community = () => {
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Error sending message. Please try again.');
+      
+      if (error.response?.data?.globalRequired) {
+        // If the error indicates global communication is required
+        if (window.confirm('This user is from a different university. Would you like to connect through the Global Community?')) {
+          setActiveSection('global');
+          // Retry after switching to global mode
+          setTimeout(() => {
+            const message = newMessage;
+            const attachment = fileAttachment;
+            setNewMessage(message);
+            setFileAttachment(attachment);
+          }, 500);
+        }
+      } else {
+        alert('Error sending message. Please try again.');
+      }
     }
   };
 
@@ -555,58 +588,56 @@ const Community = () => {
           </div>
         ) : activeSection === 'global' ? (
           <div className="max-w-3xl mx-auto">
-            {/* Create Global Post (Admin Only) */}
-            {isAdmin && (
-              <div className="bg-gray-800 rounded-lg shadow-md p-4 mb-6">
-                <h2 className="text-xl font-semibold mb-4 flex items-center">
-                  <Globe className="mr-2 text-cyan-400" />
-                  Create Global Announcement
-                </h2>
-                <textarea
-                  className="w-full bg-gray-700 text-white rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Share an announcement with all users..."
-                  rows="3"
-                  value={newPostContent}
-                  onChange={(e) => setNewPostContent(e.target.value)}
-                />
-                
-                {postImage && (
-                  <div className="mb-3 relative">
-                    <img 
-                      src={postImage} 
-                      alt="Post preview" 
-                      className="max-h-40 rounded-lg"
-                    />
-                    <button 
-                      className="absolute top-2 right-2 bg-gray-800 p-1 rounded-full text-gray-300 hover:text-white"
-                      onClick={() => setPostImage(null)}
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-center">
-                  <label className="cursor-pointer flex items-center text-gray-300 hover:text-white transition-colors">
-                    <ImageIcon className="h-5 w-5 mr-2" />
-                    <span>Add Image</span>
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={handleImageChange}
-                    />
-                  </label>
-                  <button
-                    className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-colors"
-                    onClick={handleCreatePost}
-                    disabled={!newPostContent.trim()}
+            {/* Create Global Post (For All Users) */}
+            <div className="bg-gray-800 rounded-lg shadow-md p-4 mb-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <Globe className="mr-2 text-cyan-400" />
+                {isAdmin ? "Create Global Announcement" : "Post to Global Community"}
+              </h2>
+              <textarea
+                className="w-full bg-gray-700 text-white rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                placeholder={isAdmin ? "Share an announcement with all users..." : "Share something with the global community..."}
+                rows="3"
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+              />
+              
+              {postImage && (
+                <div className="mb-3 relative">
+                  <img 
+                    src={postImage} 
+                    alt="Post preview" 
+                    className="max-h-40 rounded-lg"
+                  />
+                  <button 
+                    className="absolute top-2 right-2 bg-gray-800 p-1 rounded-full text-gray-300 hover:text-white"
+                    onClick={() => setPostImage(null)}
                   >
-                    Post Globally
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
+              )}
+              
+              <div className="flex justify-between items-center">
+                <label className="cursor-pointer flex items-center text-gray-300 hover:text-white transition-colors">
+                  <ImageIcon className="h-5 w-5 mr-2" />
+                  <span>Add Image</span>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                </label>
+                <button
+                  className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-lg transition-colors"
+                  onClick={handleCreatePost}
+                  disabled={!newPostContent.trim()}
+                >
+                  {isAdmin ? "Post Globally" : "Share Globally"}
+                </button>
               </div>
-            )}
+            </div>
 
             {/* Global Posts List */}
             {isLoading ? (
@@ -633,9 +664,15 @@ const Community = () => {
                         <div className="ml-3">
                           <p className="font-medium flex items-center">
                             {post.userName} 
-                            <span className="ml-2 bg-cyan-900/50 text-cyan-400 text-xs px-2 py-0.5 rounded-full">
-                              Admin
-                            </span>
+                            {post.userId === '000000000000000000000000' || post.university === 'Admin' ? (
+                              <span className="ml-2 bg-cyan-900/50 text-cyan-400 text-xs px-2 py-0.5 rounded-full">
+                                Admin
+                              </span>
+                            ) : (
+                              <span className="ml-2 bg-blue-900/50 text-blue-400 text-xs px-2 py-0.5 rounded-full">
+                                {post.university}
+                              </span>
+                            )}
                           </p>
                           <p className="text-xs text-gray-400 flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
@@ -788,52 +825,54 @@ const Community = () => {
                       <div className="space-y-4">
                         {messages.map((message, index) => {
                           const isSender = isCurrentUserSender(message);
+                          const senderUniversity = message.university || (isSender ? university : selectedUser?.university);
+                          const isDifferentUniversity = senderUniversity !== university && !isSender;
+                          
                           return (
                             <div 
                               key={message._id || index} 
-                              className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
+                              className={`flex mb-4 ${isSender ? 'justify-end' : 'justify-start'}`}
                             >
                               <div 
-                                className={`max-w-[70%] rounded-lg p-3 ${
+                                className={`max-w-[75%] break-words rounded-lg p-3 ${
                                   isSender 
-                                    ? 'bg-cyan-600 rounded-tr-none' 
-                                    : 'bg-gray-700 rounded-tl-none'
+                                    ? 'bg-cyan-600 text-white rounded-tr-none' 
+                                    : 'bg-gray-700 text-white rounded-tl-none'
                                 }`}
                               >
-                                {!isSender && (
-                                  <p className="text-xs font-medium text-cyan-400 mb-1">{message.senderName}</p>
-                                )}
-                                <p className="break-words">{message.content}</p>
-                                
-                                {/* File Attachment */}
-                                {message.attachment && (
-                                  <div className="mt-2 border border-gray-600 rounded p-2 bg-gray-800/50">
-                                    <div className="flex items-center">
-                                      {getFileIcon(message.attachment.fileType)}
-                                      <div className="ml-2 flex-grow">
-                                        <p className="text-sm font-medium truncate" style={{maxWidth: '200px'}}>
-                                          {message.attachment.fileName}
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                          {formatFileSize(message.attachment.fileSize)}
-                                        </p>
-                                      </div>
-                                      <a 
-                                        href={message.attachment.fileUrl} 
-                                        download
-                                        className="p-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </a>
-                                    </div>
+                                {isDifferentUniversity && (
+                                  <div className="text-xs font-medium text-blue-300 mb-1 flex items-center">
+                                    <Globe className="h-3 w-3 mr-1" />
+                                    {senderUniversity}
                                   </div>
                                 )}
                                 
-                                <p className="text-xs text-gray-400 mt-1 text-right">
-                                  {formatDate(message.createdAt)}
-                                </p>
+                                <div>
+                                  {message.content}
+                                </div>
+                                
+                                {message.attachment && (
+                                  <div className="mt-2 p-2 bg-black/20 rounded-md">
+                                    <a 
+                                      href={message.attachment.fileUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="flex items-center text-blue-300 hover:text-blue-400 transition-colors"
+                                      download
+                                    >
+                                      {getFileIcon(message.attachment.fileType)}
+                                      <div className="ml-2 flex-1 min-w-0">
+                                        <p className="text-sm truncate">{message.attachment.fileName}</p>
+                                        <p className="text-xs text-gray-400">{formatFileSize(message.attachment.fileSize)}</p>
+                                      </div>
+                                      <Download className="h-4 w-4 ml-2 flex-shrink-0" />
+                                    </a>
+                                  </div>
+                                )}
+                                
+                                <div className="text-xs opacity-70 text-right mt-1">
+                                  {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
                               </div>
                             </div>
                           );

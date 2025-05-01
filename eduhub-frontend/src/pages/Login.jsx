@@ -41,9 +41,25 @@ function LoginPage() {
       localStorage.setItem('userRole', response.data.user.role);
       localStorage.setItem('isLoggedIn', 'true');
       
-      if (response.data.user._id) {
+      // Store user ID from any available field
+      if (response.data.user.userId) {
+        localStorage.setItem('userId', response.data.user.userId);
+      } else if (response.data.user._id) {
         localStorage.setItem('userId', response.data.user._id);
+      } else if (response.data.user.id) {
+        localStorage.setItem('userId', response.data.user.id);
       }
+
+      // Store user info object for convenience
+      localStorage.setItem('userInfo', JSON.stringify({
+        name: response.data.user.name,
+        email: response.data.user.email,
+        role: response.data.user.role,
+        university: response.data.user.university,
+        department: response.data.user.department,
+        userId: localStorage.getItem('userId')
+      }));
+      
       if (response.data.user.university) {
         localStorage.setItem('userUniversity', response.data.user.university);
       }
