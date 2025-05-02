@@ -1,7 +1,16 @@
 import express from 'express';
-import { register, login, verifyEmail, resendVerificationCode, getCurrentUser } from '../controllers/authController.js';
+import { 
+  register, 
+  login, 
+  verifyEmail, 
+  resendVerificationCode, 
+  getCurrentUser,
+  googleAuthCallback,
+  githubAuthCallback 
+} from '../controllers/authController.js';
 import { authMiddleware } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
+import passport from '../utils/passport.js';
 
 const router = express.Router();
 
@@ -29,6 +38,36 @@ router.post('/verify-email', verifyEmail);
 // @desc    Resend verification code
 // @access  Public
 router.post('/resend-verification', resendVerificationCode);
+
+// @route   GET /api/auth/google
+// @desc    Initiate Google OAuth login
+// @access  Public
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email']
+}));
+
+// @route   GET /api/auth/google/callback
+// @desc    Google OAuth callback
+// @access  Public
+router.get('/google/callback', 
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }), 
+  googleAuthCallback
+);
+
+// @route   GET /api/auth/github
+// @desc    Initiate GitHub OAuth login
+// @access  Public
+router.get('/github', passport.authenticate('github', {
+  scope: ['user:email']
+}));
+
+// @route   GET /api/auth/github/callback
+// @desc    GitHub OAuth callback
+// @access  Public
+router.get('/github/callback', 
+  passport.authenticate('github', { session: false, failureRedirect: '/login' }), 
+  githubAuthCallback
+);
 
 // Diagnostic route for email - REMOVE in production
 router.get('/email-diagnostic', (req, res) => {

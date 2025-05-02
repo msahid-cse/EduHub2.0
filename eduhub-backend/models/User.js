@@ -15,7 +15,18 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true
+    required: function() {
+      // Password is required unless user signed up with OAuth
+      return !this.googleId && !this.githubId;
+    }
+  },
+  googleId: {
+    type: String,
+    default: null
+  },
+  githubId: {
+    type: String,
+    default: null
   },
   role: {
     type: String,

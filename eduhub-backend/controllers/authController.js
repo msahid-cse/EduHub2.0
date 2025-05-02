@@ -356,4 +356,46 @@ export const getCurrentUser = async (req, res) => {
     console.error('Get current user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+// Google OAuth success handler
+export const googleAuthCallback = async (req, res) => {
+  try {
+    // req.user is provided by the passport Google strategy
+    const user = req.user;
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    // Redirect to frontend with token
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?token=${token}&userId=${user._id}&role=${user.role}&email=${user.email}`);
+  } catch (error) {
+    console.error('Google auth callback error:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=oauth_failed`);
+  }
+};
+
+// GitHub OAuth success handler
+export const githubAuthCallback = async (req, res) => {
+  try {
+    // req.user is provided by the passport GitHub strategy
+    const user = req.user;
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    // Redirect to frontend with token
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/oauth-callback?token=${token}&userId=${user._id}&role=${user.role}&email=${user.email}`);
+  } catch (error) {
+    console.error('GitHub auth callback error:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=oauth_failed`);
+  }
 }; 

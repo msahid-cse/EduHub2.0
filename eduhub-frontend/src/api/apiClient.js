@@ -143,6 +143,16 @@ const authService = {
   resendVerification: (email) => apiClient.post('/auth/resend-verification', { email }),
   changePassword: (userId, oldPassword, newPassword) => 
     apiClient.post('/auth/change-password', { userId, oldPassword, newPassword }),
+
+  // Get the Google OAuth URL
+  getGoogleAuthUrl: () => {
+    return `${apiClient.defaults.baseURL}/auth/google`;
+  },
+  
+  // Get the GitHub OAuth URL
+  getGithubAuthUrl: () => {
+    return `${apiClient.defaults.baseURL}/auth/github`;
+  },
 };
 
 const userService = {

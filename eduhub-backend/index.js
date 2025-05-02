@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
+import passport from './utils/passport.js';
 
 // Fix email password by removing spaces if it exists
 if (process.env.EMAIL_PASS) {
@@ -60,6 +61,9 @@ app.use(morgan("tiny"));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors());
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
