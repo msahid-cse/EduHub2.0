@@ -12,6 +12,7 @@ function PostJob() {
     location: "",
     description: "",
     requirements: "",
+    neededSkills: "",
     type: "full-time",
     salary: "",
     contactEmail: "",
@@ -75,10 +76,11 @@ function PostJob() {
     try {
       const token = localStorage.getItem('token');
       
-      // Format requirements as an array if it's not empty
+      // Format requirements and neededSkills as arrays if they're not empty
       const formattedData = {
         ...form,
-        requirements: form.requirements ? form.requirements.split('\n').filter(req => req.trim() !== '') : []
+        requirements: form.requirements ? form.requirements.split('\n').filter(req => req.trim() !== '') : [],
+        neededSkills: form.neededSkills ? form.neededSkills.split('\n').filter(skill => skill.trim() !== '') : []
       };
       
       const response = await axios.post(
@@ -104,6 +106,7 @@ function PostJob() {
         location: "",
         description: "",
         requirements: "",
+        neededSkills: "",
         type: "full-time",
         salary: "",
         contactEmail: "",
@@ -304,6 +307,21 @@ function PostJob() {
               placeholder="e.g. Bachelor's degree in Computer Science&#10;2+ years of experience with React&#10;Strong problem-solving skills"
             />
             <p className="text-gray-400 text-xs mt-1">Enter each requirement on a new line</p>
+          </div>
+          
+          <div className="mb-8">
+            <label className="block text-gray-300 text-sm font-medium mb-2">
+              Needed Skills (One per line)
+            </label>
+            <textarea
+              name="neededSkills"
+              rows="5"
+              className="w-full px-4 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              value={form.neededSkills}
+              onChange={handleChange}
+              placeholder="e.g. JavaScript&#10;React&#10;Node.js&#10;MongoDB"
+            />
+            <p className="text-gray-400 text-xs mt-1">Enter each skill on a new line</p>
           </div>
           
           <div className="flex items-center justify-between">

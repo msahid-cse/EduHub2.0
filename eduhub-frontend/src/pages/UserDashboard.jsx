@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { 
   BookOpen,
   Users,
@@ -4052,6 +4052,46 @@ This appointment request was sent via the EduHub 2.0 Appointment System.
           </div>
         );
       
+      case 'jobSearch':
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <h2 className="text-2xl font-bold text-white">Job Search</h2>
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search job postings..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            {/* Career section */}
+            <div className="mt-5">
+              <h3 className={`${sidebarCollapsed ? 'text-center' : 'pl-4'} text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3`}>
+                {!sidebarCollapsed && 'Career'}
+              </h3>
+              <Link 
+                to="/job-search-by-cv"
+                className={`mb-1 flex items-center px-4 py-2.5 text-gray-300 hover:bg-cyan-900/30 hover:text-cyan-400 rounded-lg transition-all duration-200 ${activeTab === 'jobSearch' ? 'bg-cyan-900/30 text-cyan-400' : ''}`}
+              >
+                <FileSearch className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span className="ml-3">Job Search</span>}
+              </Link>
+              <Link 
+                to="/applications"
+                className={`mb-1 flex items-center px-4 py-2.5 text-gray-300 hover:bg-cyan-900/30 hover:text-cyan-400 rounded-lg transition-all duration-200 ${activeTab === 'applications' ? 'bg-cyan-900/30 text-cyan-400' : ''}`}
+              >
+                <Briefcase className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span className="ml-3">My Applications</span>}
+              </Link>
+            </div>
+          </div>
+        );
+      
       default:
         return null;
     }
@@ -4202,8 +4242,18 @@ This appointment request was sent via the EduHub 2.0 Appointment System.
                   className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors text-gray-400`}
                   title="Job Search by CV"
                 >
-                  <Briefcase className="w-5 h-5 flex-shrink-0" />
+                  <FileSearch className="w-5 h-5" />
                   {!sidebarCollapsed && <span>Job Search by CV</span>}
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => navigate('/applications')}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors text-gray-400`}
+                  title="My Applications"
+                >
+                  <Briefcase className="w-5 h-5" />
+                  {!sidebarCollapsed && <span>My Applications</span>}
                 </button>
               </li>
             </ul>

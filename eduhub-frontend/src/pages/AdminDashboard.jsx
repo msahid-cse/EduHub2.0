@@ -797,77 +797,79 @@ const AdminDashboard = ({ initialSection }) => {
           </div>
         )}
         
-        {/* Quick Actions */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg mb-8">
-          <div className="flex justify-between items-center mb-4">
+        {/* Quick Actions Section */}
+        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Quick Actions</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-            <button
+          
+          {/* First Row of Quick Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <button 
               onClick={() => navigate('/post-job')}
-              className="flex items-center p-5 bg-gradient-to-br from-blue-800 to-blue-900 rounded-xl shadow-md hover:from-blue-700 hover:to-blue-800"
+              className="bg-gradient-to-br from-green-600/20 to-green-800/20 p-3 rounded-lg border border-green-700/50 hover:border-green-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <Briefcase className="mr-3 text-blue-300" size={22} />
-              <span className="text-white font-medium">Post New Job</span>
+              <Briefcase className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Post New Job</span>
             </button>
             
-            <button
+            <button 
               onClick={() => navigate('/post-notice')}
-              className="flex items-center p-5 bg-gradient-to-br from-purple-800 to-purple-900 rounded-xl shadow-md hover:from-purple-700 hover:to-purple-800"
+              className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 p-3 rounded-lg border border-purple-700/50 hover:border-purple-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <Bell className="mr-3 text-purple-300" size={22} />
-              <span className="text-white font-medium">Post New Notice</span>
+              <Bell className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Post New Notice</span>
             </button>
             
-            <button
+            <button 
               onClick={() => navigate('/add-course')}
-              className="flex items-center p-5 bg-gradient-to-br from-teal-800 to-teal-900 rounded-xl shadow-md hover:from-teal-700 hover:to-teal-800"
+              className="bg-gradient-to-br from-orange-600/20 to-orange-800/20 p-3 rounded-lg border border-orange-700/50 hover:border-orange-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <BookOpen className="mr-3 text-teal-300" size={22} />
-              <span className="text-white font-medium">Add New Course</span>
+              <BookOpen className="w-5 h-5 text-orange-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Add New Course</span>
             </button>
             
-            <button
-              onClick={() => navigate('/manage-jobs')}
-              className="flex items-center p-5 bg-gradient-to-br from-amber-800 to-amber-900 rounded-xl shadow-md hover:from-amber-700 hover:to-amber-800"
+            <button 
+              onClick={() => navigate('/view-applications')}
+              className="bg-gradient-to-br from-cyan-600/20 to-cyan-800/20 p-3 rounded-lg border border-cyan-700/50 hover:border-cyan-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <List className="mr-3 text-amber-300" size={22} />
-              <span className="text-white font-medium">View Applications</span>
+              <FileText className="w-5 h-5 text-cyan-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">View Applications</span>
             </button>
           </div>
           
-          {/* Second row of quick actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-            <Link
-              to="/manage-instructors"
-              className="flex items-center p-5 bg-gradient-to-br from-indigo-800 to-indigo-900 rounded-xl shadow-md hover:from-indigo-700 hover:to-indigo-800"
+          {/* Second Row of Quick Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <button 
+              onClick={() => navigate('/manage-instructors')}
+              className="bg-gradient-to-br from-indigo-600/20 to-indigo-800/20 p-3 rounded-lg border border-indigo-700/50 hover:border-indigo-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <GraduationCap className="mr-3 text-indigo-300" size={22} />
-              <span className="text-white font-medium">Add New Instructor</span>
-            </Link>
+              <Users className="w-5 h-5 text-indigo-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Add New Instructor</span>
+            </button>
             
-            <Link
-              to="/manage-community"
-              className="flex items-center p-5 bg-gradient-to-br from-pink-800 to-pink-900 rounded-xl shadow-md hover:from-pink-700 hover:to-pink-800"
+            <button 
+              onClick={() => navigate('/community')}
+              className="bg-gradient-to-br from-teal-600/20 to-teal-800/20 p-3 rounded-lg border border-teal-700/50 hover:border-teal-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <MessageSquare className="mr-3 text-pink-300" size={22} />
-              <span className="text-white font-medium">Manage Community</span>
-            </Link>
+              <Globe className="w-5 h-5 text-teal-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Manage Community</span>
+            </button>
             
-            <Link
-              to="/add-event"
-              className="flex items-center p-5 bg-gradient-to-br from-green-800 to-green-900 rounded-xl shadow-md hover:from-green-700 hover:to-green-800"
+            <button 
+              onClick={() => navigate('/add-event')}
+              className="bg-gradient-to-br from-amber-600/20 to-amber-800/20 p-3 rounded-lg border border-amber-700/50 hover:border-amber-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <Calendar className="mr-3 text-green-300" size={22} />
-              <span className="text-white font-medium">Add New Event</span>
-            </Link>
+              <Calendar className="w-5 h-5 text-amber-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Add New Event</span>
+            </button>
             
-            <button
-              onClick={() => navigate('/feedback')}
-              className="flex items-center p-5 bg-gradient-to-br from-rose-800 to-rose-900 rounded-xl shadow-md hover:from-rose-700 hover:to-rose-800"
+            <button 
+              onClick={() => navigate('/manage-feedback')}
+              className="bg-gradient-to-br from-red-600/20 to-red-800/20 p-3 rounded-lg border border-red-700/50 hover:border-red-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
             >
-              <MessageCircle className="mr-3 text-rose-300" size={22} />
-              <span className="text-white font-medium">Manage Feedback</span>
+              <MessageCircle className="w-5 h-5 text-red-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Manage Feedback</span>
             </button>
           </div>
         </div>

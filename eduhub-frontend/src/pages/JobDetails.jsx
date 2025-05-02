@@ -12,8 +12,10 @@ import {
   Check,
   ExternalLink,
   Share2,
-  ArrowRight
+  ArrowRight,
+  Users
 } from 'lucide-react';
+import JobApplicationForm from '../components/JobApplicationForm';
 
 function JobDetails() {
   const { id } = useParams();
@@ -23,6 +25,9 @@ function JobDetails() {
   const [error, setError] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState('');
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [applicationSuccess, setApplicationSuccess] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
@@ -37,6 +42,28 @@ function JobDetails() {
       try {
         const response = await axios.get(`http://localhost:5000/api/jobs/${id}`);
         setJob(response.data);
+        
+        // Check if user has already applied
+        if (loggedIn) {
+          const token = localStorage.getItem('token');
+          try {
+            const userApplicationsResponse = await axios.get(
+              'http://localhost:5000/api/jobs/user/applications',
+              {
+                headers: { Authorization: `Bearer ${token}` }
+              }
+            );
+            
+            const applied = userApplicationsResponse.data.some(
+              application => application.job._id === id
+            );
+            
+            setHasApplied(applied);
+          } catch (err) {
+            console.error('Error checking job application status:', err);
+          }
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching job details:', err);
@@ -71,17 +98,30 @@ function JobDetails() {
   };
 
   // Handle job application
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!isLoggedIn) {
       navigate('/login', { state: { from: `/job/${id}` } });
       return;
     }
 
-    // This would typically make an API call to apply for the job
-    // For now, we'll just redirect to login if not logged in
-    if (isLoggedIn) {
-      alert('Application functionality will be implemented soon!');
-    }
+    setShowApplicationForm(true);
+  };
+
+  // Handle application form success
+  const handleApplicationSuccess = (data) => {
+    setApplicationSuccess(true);
+    setShowApplicationForm(false);
+    setHasApplied(true);
+    
+    // Refresh job data to get updated applicant count
+    setTimeout(() => {
+      window.location.reload();
+    }, 3000);
+  };
+
+  // Handle application form cancel
+  const handleApplicationCancel = () => {
+    setShowApplicationForm(false);
   };
 
   if (loading) {
@@ -114,6 +154,31 @@ function JobDetails() {
               className="px-6 py-3 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors"
             >
               Return to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Success message after application submission
+  if (applicationSuccess) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white py-10 px-4">
+        <div className="max-w-4xl mx-auto bg-gray-800 rounded-xl p-8 text-center">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Check className="w-10 h-10 text-green-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Application Submitted!</h2>
+          <p className="text-gray-400 mb-6">
+            Your application for <span className="text-white font-medium">{job.title}</span> at {job.company} has been submitted successfully.
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button 
+              onClick={() => navigate('/jobs')}
+              className="px-6 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+            >
+              Browse More Jobs
             </button>
           </div>
         </div>
@@ -180,17 +245,27 @@ function JobDetails() {
                 </p>
               </div>
               
-              <button 
-                onClick={handleApply}
-                className="px-6 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-green-500 text-white font-medium hover:from-teal-600 hover:to-green-600 transition-colors flex items-center"
-              >
-                Apply Now <ExternalLink className="w-4 h-4 ml-2" />
-              </button>
+              {hasApplied ? (
+                <div className="px-6 py-3 rounded-lg bg-green-600/20 text-green-400 font-medium flex items-center">
+                  <Check className="w-5 h-5 mr-2" />
+                  You've Applied
+                </div>
+              ) : (
+                <button 
+                  onClick={handleApply}
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-green-500 text-white font-medium hover:from-teal-600 hover:to-green-600 transition-colors flex items-center"
+                >
+                  Apply Now <ExternalLink className="w-4 h-4 ml-2" />
+                </button>
+              )}
             </div>
             
             {/* Applicant count */}
             <div className="mt-4 text-sm text-gray-400 flex justify-between items-center">
-              <span>{job.applicants?.length || 0} people have applied to this position</span>
+              <span className="flex items-center">
+                <Users className="w-4 h-4 mr-2 text-gray-500" />
+                {job.applicants?.length || 0} people have applied to this position
+              </span>
               <button className="text-teal-400 hover:text-teal-300 flex items-center">
                 <Share2 className="w-4 h-4 mr-1" /> Share
               </button>
@@ -199,48 +274,73 @@ function JobDetails() {
           
           {/* Job description */}
           <div className="p-6 md:p-8">
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-white mb-4">Job Description</h2>
-              <div className="text-gray-300 space-y-4 whitespace-pre-line">
-                {job.description}
-              </div>
-            </div>
-            
-            {job.requirements && job.requirements.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-white mb-4">Requirements</h2>
-                <ul className="text-gray-300 space-y-2">
-                  {job.requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start">
-                      <Check className="w-5 h-5 text-teal-400 mr-2 flex-shrink-0 mt-0.5" />
-                      <span>{requirement}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {showApplicationForm ? (
+              <JobApplicationForm 
+                jobId={id} 
+                onSuccess={handleApplicationSuccess}
+                onCancel={handleApplicationCancel}
+              />
+            ) : (
+              <>
+                <div className="mb-8">
+                  <h2 className="text-xl font-bold text-white mb-4">Job Description</h2>
+                  <div className="text-gray-300 space-y-4 whitespace-pre-line">
+                    {job.description}
+                  </div>
+                </div>
+                
+                {job.requirements && job.requirements.length > 0 && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-bold text-white mb-4">Requirements</h2>
+                    <ul className="text-gray-300 space-y-2">
+                      {job.requirements.map((requirement, index) => (
+                        <li key={index} className="flex items-start">
+                          <Check className="w-5 h-5 text-teal-400 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>{requirement}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {job.neededSkills && job.neededSkills.length > 0 && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-bold text-white mb-4">Needed Skills</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {job.neededSkills.map((skill, index) => (
+                        <span key={index} className="px-3 py-1 bg-gray-700 rounded-full text-teal-400 text-sm">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {job.salary && (
+                  <div className="mb-8">
+                    <h2 className="text-xl font-bold text-white mb-4">Salary</h2>
+                    <p className="text-gray-300">{job.salary}</p>
+                  </div>
+                )}
+                
+                {/* Application CTA */}
+                {!hasApplied && (
+                  <div className="mt-10 pt-6 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="text-gray-300">
+                      <p>Interested in this job?</p>
+                      <p className="text-sm text-gray-400">Apply before {formatDate(job.deadline)}</p>
+                    </div>
+                    
+                    <button 
+                      onClick={handleApply}
+                      className="px-8 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-green-500 text-white font-medium hover:from-teal-600 hover:to-green-600 transition-colors flex items-center"
+                    >
+                      Apply Now <ArrowRight className="w-4 h-4 ml-2" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-            
-            {job.salary && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-white mb-4">Salary</h2>
-                <p className="text-gray-300">{job.salary}</p>
-              </div>
-            )}
-            
-            {/* Application CTA */}
-            <div className="mt-10 pt-6 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="text-gray-300">
-                <p>Interested in this job?</p>
-                <p className="text-sm text-gray-400">Apply before {formatDate(job.deadline)}</p>
-              </div>
-              
-              <button 
-                onClick={handleApply}
-                className="px-8 py-3 rounded-lg bg-gradient-to-r from-teal-500 to-green-500 text-white font-medium hover:from-teal-600 hover:to-green-600 transition-colors flex items-center"
-              >
-                Apply Now <ArrowRight className="w-4 h-4 ml-2" />
-              </button>
-            </div>
           </div>
         </div>
         
@@ -254,6 +354,12 @@ function JobDetails() {
                 className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
                 Edit Job
+              </button>
+              <button 
+                onClick={() => navigate(`/job-applications/${id}`)}
+                className="px-6 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+              >
+                View Applications ({job.applicants?.length || 0})
               </button>
               <button 
                 className="px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"

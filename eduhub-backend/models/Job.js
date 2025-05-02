@@ -21,6 +21,9 @@ const jobSchema = new mongoose.Schema({
   requirements: [{
     type: String
   }],
+  neededSkills: [{
+    type: String
+  }],
   type: {
     type: String,
     enum: ['full-time', 'part-time', 'internship', 'remote'],

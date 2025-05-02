@@ -28,6 +28,9 @@ import EventDetail from "./pages/EventDetail";
 import EditEvent from "./pages/EditEvent";
 import SendEventInvitations from "./pages/SendEventInvitations";
 import JobSearchByCV from "./pages/JobSearchByCV";
+import JobApplications from "./pages/JobApplications";
+import UserApplications from "./pages/UserApplications";
+import ViewAllApplications from "./pages/ViewAllApplications";
 // import Navbar from "./components/Navbar";
 
 function App() {
@@ -68,6 +71,11 @@ function App() {
         <Route path="/job-search-by-cv" element={
           <ProtectedRoute requiredRole="user">
             <JobSearchByCV />
+          </ProtectedRoute>
+        } />
+        <Route path="/applications" element={
+          <ProtectedRoute requiredRole="user">
+            <UserApplications />
           </ProtectedRoute>
         } />
         <Route path="/community" element={
@@ -125,6 +133,16 @@ function App() {
         <Route path="/post-job" element={
           <ProtectedRoute requiredRole="admin">
             <PostJob />
+          </ProtectedRoute>
+        } />
+        <Route path="/view-applications" element={
+          <ProtectedRoute requiredRole="admin">
+            <ViewAllApplications />
+          </ProtectedRoute>
+        } />
+        <Route path="/job-applications/:id" element={
+          <ProtectedRoute requiredRole="admin">
+            <JobApplications />
           </ProtectedRoute>
         } />
         <Route path="/manage-jobs" element={

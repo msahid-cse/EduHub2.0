@@ -7,8 +7,15 @@ import {
   updateJob, 
   deleteJob, 
   applyForJob, 
-  getJobsByType 
+  getJobsByType,
+  getJobApplications,
+  updateApplicationStatus,
+  getUserApplications,
+  getAllJobApplications,
+  getJobApplicationCount,
+  downloadCoverLetter
 } from '../controllers/jobController.js';
+import { uploadCV } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -16,11 +23,6 @@ const router = express.Router();
 // @desc    Get all jobs
 // @access  Public
 router.get('/', getAllJobs);
-
-// @route   GET /api/jobs/type/:type
-// @desc    Get jobs by type
-// @access  Public
-router.get('/type/:type', getJobsByType);
 
 // @route   GET /api/jobs/:id
 // @desc    Get job by ID
@@ -43,8 +45,43 @@ router.put('/:id', authMiddleware, adminOnly, updateJob);
 router.delete('/:id', authMiddleware, adminOnly, deleteJob);
 
 // @route   POST /api/jobs/:id/apply
-// @desc    Apply for a job
+// @desc    Apply for a job with CV upload
 // @access  Private
-router.post('/:id/apply', authMiddleware, applyForJob);
+router.post('/:id/apply', authMiddleware, uploadCV, applyForJob);
+
+// @route   GET /api/jobs/:id/applications
+// @desc    Get all applications for a job
+// @access  Private/Admin
+router.get('/:id/applications', authMiddleware, adminOnly, getJobApplications);
+
+// @route   PUT /api/jobs/applications/:applicationId
+// @desc    Update application status
+// @access  Private/Admin
+router.put('/applications/:applicationId', authMiddleware, adminOnly, updateApplicationStatus);
+
+// @route   GET /api/jobs/applications/all
+// @desc    Get all applications across all jobs
+// @access  Private/Admin
+router.get('/applications/all', authMiddleware, adminOnly, getAllJobApplications);
+
+// @route   GET /api/jobs/applications/count
+// @desc    Get count of all applications
+// @access  Private/Admin
+router.get('/applications/count', authMiddleware, adminOnly, getJobApplicationCount);
+
+// @route   GET /api/jobs/user/applications
+// @desc    Get all applications for a user
+// @access  Private
+router.get('/user/applications', authMiddleware, getUserApplications);
+
+// @route   GET /api/jobs/applications/:applicationId/cover-letter
+// @desc    Download cover letter PDF for an application
+// @access  Private
+router.get('/applications/:applicationId/cover-letter', authMiddleware, downloadCoverLetter);
+
+// @route   GET /api/jobs/type/:type
+// @desc    Get jobs by type
+// @access  Public
+router.get('/type/:type', getJobsByType);
 
 export default router; 

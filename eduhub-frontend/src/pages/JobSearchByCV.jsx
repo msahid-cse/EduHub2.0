@@ -599,7 +599,7 @@ const JobSearchByCV = () => {
                     <div className="mb-4">
                       <p className="text-sm font-medium text-gray-300 mb-2">Required Skills:</p>
                       <div className="flex flex-wrap gap-2">
-                        {job.skills && job.skills.slice(0, 5).map((skill, idx) => (
+                        {job.neededSkills && job.neededSkills.slice(0, 5).map((skill, idx) => (
                           <span 
                             key={idx} 
                             className="px-2 py-1 bg-gray-700 text-gray-300 rounded-full text-xs"
@@ -607,9 +607,9 @@ const JobSearchByCV = () => {
                             {skill}
                           </span>
                         ))}
-                        {job.skills && job.skills.length > 5 && (
+                        {job.neededSkills && job.neededSkills.length > 5 && (
                           <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded-full text-xs">
-                            +{job.skills.length - 5} more
+                            +{job.neededSkills.length - 5} more
                           </span>
                         )}
                       </div>
@@ -681,6 +681,19 @@ const JobSearchByCV = () => {
                   <h4 className="text-lg font-semibold mb-2">Requirements</h4>
                   <p className="text-gray-300">{selectedJob.requirements}</p>
                 </div>
+                
+                {selectedJob.neededSkills && selectedJob.neededSkills.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold mb-2">Needed Skills</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJob.neededSkills.map((skill, index) => (
+                        <span key={index} className="px-3 py-1 bg-gray-700 rounded-full text-cyan-400 text-sm">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="mb-6">
                   <h4 className="text-lg font-semibold mb-2">Skills</h4>
