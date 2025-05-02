@@ -80,11 +80,6 @@ ChartJS.register(
   Filler
 );
 
-import UserJobApplications from '../components/UserJobApplications';
-
-// First, verify the Sidebar import
-import Sidebar from '../components/Sidebar';
-
 const UserDashboard = () => {
   const location = useLocation();
   const [userInfo, setUserInfo] = useState(null);
@@ -4039,41 +4034,14 @@ This appointment request was sent via the EduHub 2.0 Appointment System.
                 <FileSearch className="w-5 h-5 flex-shrink-0" />
                 {!sidebarCollapsed && <span className="ml-3">Job Search</span>}
               </Link>
-              
+              <Link 
+                to="/applications"
+                className={`mb-1 flex items-center px-4 py-2.5 text-gray-300 hover:bg-cyan-900/30 hover:text-cyan-400 rounded-lg transition-all duration-200 ${activeTab === 'applications' ? 'bg-cyan-900/30 text-cyan-400' : ''}`}
+              >
+                <Briefcase className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span className="ml-3">My Applications</span>}
+              </Link>
             </div>
-          </div>
-        );
-      
-      case 'applications':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-white mb-1">My Job Applications</h1>
-                <p className="text-gray-400">
-                  Track the status of your job applications
-                </p>
-              </div>
-              
-              <div className="flex gap-3">
-                <Link 
-                  to="/my-applications"
-                  className="px-4 py-2 bg-blue-600 rounded-lg text-white flex items-center hover:bg-blue-700 transition-colors"
-                >
-                  <Eye className="w-4 h-4 mr-1.5" />
-                  View All Applications
-                </Link>
-                <Link 
-                  to="/jobs"
-                  className="px-4 py-2 bg-teal-600 rounded-lg text-white flex items-center hover:bg-teal-700 transition-colors"
-                >
-                  <Briefcase className="w-4 h-4 mr-1.5" />
-                  Browse Jobs
-                </Link>
-              </div>
-            </div>
-            
-            <UserJobApplications />
           </div>
         );
       
@@ -4321,15 +4289,14 @@ This appointment request was sent via the EduHub 2.0 Appointment System.
               </li>
               <li>
                 <button 
-                  onClick={() => setActiveTab('applications')}
-                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors ${activeTab === 'applications' ? 'bg-cyan-600 text-white' : 'text-gray-400'}`}
+                  onClick={() => navigate('/applications')}
+                  className={`w-full px-3 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} rounded-lg hover:bg-gray-800 transition-colors text-gray-400`}
                   title="My Applications"
                 >
-                  <Briefcase className="w-5 h-5 flex-shrink-0" />
+                  <Briefcase className="w-5 h-5" />
                   {!sidebarCollapsed && <span>My Applications</span>}
                 </button>
               </li>
-              
             </ul>
             
             <div className="px-3 py-4 mt-8">
@@ -4394,7 +4361,6 @@ This appointment request was sent via the EduHub 2.0 Appointment System.
               {activeTab === 'growth' && <TrendingUp className="mr-2 w-5 h-5" />}
               {activeTab === 'community' && <MessageCircle className="mr-2 w-5 h-5" />}
               {activeTab === 'cvbuilder' && <FileText className="mr-2 w-5 h-5" />}
-              {activeTab === 'applications' && <Briefcase className="mr-2 w-5 h-5" />}
               {activeTab}
             </h2>
             <div className="flex items-center">

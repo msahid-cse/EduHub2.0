@@ -1,81 +1,83 @@
 import axios from 'axios';
 
-// Create a base API client with default config
+// API base URL - can be overridden with environment variable
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+// Base API client
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5000/api', 
+  baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 });
 
-// Add authorization headers automatically if token exists
+// Request interceptor to add auth token
 apiClient.interceptors.request.use(
-  config => {
+  (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
-  error => {
+  (error) => {
     return Promise.reject(error);
   }
 );
 
-// Handle response errors 
-apiClient.interceptors.response.use(
-  response => response,
-  error => {
-    // Handle token expiration
-    if (error.response && error.response.status === 401) {
-      // If we get an unauthorized error, check if it's due to token expiration
-      if (error.response.data.message === 'Token is not valid' || 
-          error.response.data.message === 'Token expired') {
-        // Clear localStorage and redirect to login
-        localStorage.removeItem('token');
-        localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('userRole');
-        
-        // Redirect to login page
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
+// Server health check function
+const checkServerConnection = async () => {
+  try {
+    console.log(`Testing connection to server at ${API_BASE_URL}...`);
+    const response = await axios.get(`${API_BASE_URL}/api/health`, { timeout: 5000 });
+    console.log('Server connection successful:', response.data);
+    return {
+      success: true,
+      message: 'Server connection successful',
+      data: response.data
+    };
+  } catch (error) {
+    console.error('Server connection failed:', error.message);
+    return {
+      success: false,
+      message: 'Server connection failed',
+      error: error.message
+    };
   }
-);
+};
 
 // Community API endpoints
 const communityAPI = {
   // Get global posts (visible to all users)
-  getGlobalPosts: () => apiClient.get('/community/global/posts'),
+  getGlobalPosts: () => apiClient.get('/api/community/global/posts'),
   
   // Get university posts (visible only to users from the same university)
-  getPosts: () => apiClient.get('/community/posts'),
+  getPosts: () => apiClient.get('/api/community/posts'),
   
   // Create a new post
-  createPost: (postData) => apiClient.post('/community/posts', postData),
+  createPost: (postData) => apiClient.post('/api/community/posts', postData),
   
   // Add a comment to a post
-  addComment: (postId, content) => apiClient.post(`/community/posts/${postId}/comments`, { content }),
+  addComment: (postId, content) => apiClient.post(`/api/community/posts/${postId}/comments`, { content }),
   
   // Like or unlike a post
-  likePost: (postId) => apiClient.post(`/community/posts/${postId}/like`),
+  likePost: (postId) => apiClient.post(`/api/community/posts/${postId}/like`),
   
   // Get university members for chat
-  getMembers: () => apiClient.get('/community/members'),
+  getMembers: () => apiClient.get('/api/community/members'),
   
   // Get all users (admin only)
-  getAllUsers: () => apiClient.get('/community/users'),
+  getAllUsers: () => apiClient.get('/api/community/users'),
   
   // Alternative method to get all users for admin
-  getAdminUsers: () => apiClient.get('/community/admin/users'),
+  getAdminUsers: () => apiClient.get('/api/community/admin/users'),
   
   // Get global community members (all users regardless of university)
-  getGlobalMembers: () => apiClient.get('/community/global/members'),
+  getGlobalMembers: () => apiClient.get('/api/community/global/members'),
   
   // Send a message to another user
   sendMessage: (receiverId, content, attachment = null, isGlobal = false) => 
-    apiClient.post('/community/messages', { 
+    apiClient.post('/api/community/messages', { 
       receiverId, 
       content, 
       attachment,
@@ -83,16 +85,16 @@ const communityAPI = {
     }),
   
   // Get conversation with another user
-  getConversation: (userId) => apiClient.get(`/community/messages/${userId}`),
+  getConversation: (userId) => apiClient.get(`/api/community/messages/${userId}`),
   
   // Get unread message count
-  getUnreadCount: () => apiClient.get('/community/messages/unread/count'),
+  getUnreadCount: () => apiClient.get('/api/community/messages/unread/count'),
   
   // Upload file attachment
   uploadAttachment: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.post('/community/upload', formData, {
+    return apiClient.post('/api/community/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
@@ -100,102 +102,151 @@ const communityAPI = {
   },
   
   // Check admin status
-  checkAdminStatus: () => apiClient.get('/community/admin/check'),
+  checkAdminStatus: () => apiClient.get('/api/community/admin/check'),
 };
 
 // Instructor service endpoints
 const instructorService = {
-  getAllInstructors: (university) => {
-    const params = university ? { university } : {};
-    return apiClient.get('/instructors', { params });
+  getAllInstructors: () => {
+    return apiClient.get('/api/instructors');
   },
-  getInstructorById: (id) => apiClient.get(`/instructors/${id}`),
+  getInstructorById: (id) => {
+    return apiClient.get(`/api/instructors/${id}`);
+  },
   createInstructor: (formData) => {
-    return apiClient.post('/instructors', formData, {
+    return apiClient.post('/api/instructors', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
     });
   },
   uploadInstructorData: (formData) => {
-    return apiClient.post('/instructors/upload', formData, {
+    return apiClient.post('/api/instructors/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
     });
   },
-  addInstructorsManually: (data) => apiClient.post('/instructors/add-manually', data),
+  addInstructorsManually: (data) => apiClient.post('/api/instructors/add-manually', data),
   updateInstructor: (id, formData) => {
-    return apiClient.put(`/instructors/${id}`, formData, {
+    return apiClient.put(`/api/instructors/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
     });
   },
-  deleteInstructor: (id) => apiClient.delete(`/instructors/${id}`),
+  deleteInstructor: (id) => apiClient.delete(`/api/instructors/${id}`),
 };
 
 // API service functions
 const authService = {
-  login: (email, password) => apiClient.post('/auth/login', { email, password }),
-  register: (userData) => apiClient.post('/auth/register', userData),
-  verifyEmail: (verificationData) => apiClient.post('/auth/verify-email', verificationData),
-  resendVerification: (email) => apiClient.post('/auth/resend-verification', { email }),
+  login: (email, password) => {
+    return apiClient.post('/api/auth/login', { email, password });
+  },
+  
+  register: (userData) => {
+    // Log the registration attempt for debugging
+    console.log('Sending registration request with data:', { ...userData, password: '[HIDDEN]' });
+    return apiClient.post('/api/auth/register', userData);
+  },
+  
+  verifyEmail: (verificationData) => {
+    // Log the verification attempt
+    console.log('Sending verification request with code for:', verificationData.email);
+    return apiClient.post('/api/auth/verify-email', verificationData);
+  },
+  
+  resendVerification: (email) => {
+    console.log('Requesting new verification code for:', email);
+    return apiClient.post('/api/auth/resend-verification', { email });
+  },
+  
   changePassword: (userId, oldPassword, newPassword) => 
-    apiClient.post('/auth/change-password', { userId, oldPassword, newPassword }),
+    apiClient.post('/api/auth/change-password', { userId, oldPassword, newPassword }),
 
   // Get the Google OAuth URL
   getGoogleAuthUrl: () => {
-    return `${apiClient.defaults.baseURL}/auth/google`;
+    return `${apiClient.defaults.baseURL}/api/auth/google`;
   },
   
   // Get the GitHub OAuth URL
   getGithubAuthUrl: () => {
-    return `${apiClient.defaults.baseURL}/auth/github`;
+    return `${apiClient.defaults.baseURL}/api/auth/github`;
+  },
+
+  getCurrentUser: () => {
+    return apiClient.get('/api/users/me');
   },
 };
 
 const userService = {
-  getProfile: (userId) => apiClient.get(`/users/${userId}`),
-  updateProfile: (userId, userData) => apiClient.put(`/users/${userId}`, userData),
+  getProfile: (userId) => apiClient.get(`/api/users/${userId}`),
+  updateProfile: (userId, userData) => apiClient.put(`/api/users/${userId}`, userData),
   updateProfilePhoto: (userId, formData) => {
     // For file uploads, need to use FormData and different Content-Type
-    return axios.put(`${API_URL}/users/${userId}/profile-photo`, formData, {
+    return axios.put(`${API_BASE_URL}/api/users/${userId}/profile-photo`, formData, {
       headers: { 
         'Content-Type': 'multipart/form-data',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
   },
-  updateSkills: (userId, skills) => apiClient.put(`/users/${userId}/skills`, { skills }),
+  updateSkills: (userId, skills) => apiClient.put(`/api/users/${userId}/skills`, { skills }),
 };
 
 const courseService = {
-  getAllCourses: () => apiClient.get('/courses'),
-  getCourseById: (courseId) => apiClient.get(`/courses/${courseId}`),
-  enrollInCourse: (courseId, userId) => apiClient.post(`/courses/${courseId}/enroll`, { userId }),
-  updateProgress: (progressData) => apiClient.post('/courses/update-progress', progressData),
-  searchCourses: (query) => apiClient.get(`/courses/search?query=${query}`),
+  getAllCourses: () => apiClient.get('/api/courses'),
+  getCourseById: (courseId) => apiClient.get(`/api/courses/${courseId}`),
+  enrollInCourse: (courseId, userId) => apiClient.post(`/api/courses/${courseId}/enroll`, { userId }),
+  updateProgress: (progressData) => apiClient.post('/api/courses/update-progress', progressData),
+  searchCourses: (query) => apiClient.get(`/api/courses/search?query=${query}`),
 };
 
 const learningProgressService = {
-  getUserProgress: (userId) => apiClient.get(`/users/${userId}/learning-progress`),
+  getUserProgress: (userId) => apiClient.get(`/api/users/${userId}/learning-progress`),
   updateStudySession: (userId, sessionData) => 
-    apiClient.post(`/users/${userId}/study-session`, sessionData),
-  getAnalytics: (userId) => apiClient.get(`/users/${userId}/analytics`),
+    apiClient.post(`/api/users/${userId}/study-session`, sessionData),
+  getAnalytics: (userId) => apiClient.get(`/api/users/${userId}/analytics`),
 };
 
 const noticeService = {
-  getAllNotices: () => apiClient.get('/notices'),
-  getNoticeById: (noticeId) => apiClient.get(`/notices/${noticeId}`),
-  createNotice: (noticeData) => apiClient.post('/notices', noticeData),
+  getAllNotices: () => apiClient.get('/api/notices'),
+  getNoticeById: (noticeId) => apiClient.get(`/api/notices/${noticeId}`),
+  createNotice: (noticeData) => apiClient.post('/api/notices', noticeData),
 };
 
 const jobService = {
-  getAllJobs: () => apiClient.get('/jobs'),
-  getJobById: (jobId) => apiClient.get(`/jobs/${jobId}`),
-  applyForJob: (jobId, userId, applicationData) => 
-    apiClient.post(`/jobs/${jobId}/apply`, { userId, ...applicationData }),
+  getAllJobs: () => {
+    return apiClient.get('/api/jobs');
+  },
+  getJobById: (id) => {
+    return apiClient.get(`/api/jobs/${id}`);
+  },
+  applyForJob: (id, formData) => {
+    return apiClient.post(`/api/jobs/${id}/apply`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  getUserApplications: () => {
+    return apiClient.get('/api/jobs/user/applications');
+  },
+  downloadCoverLetter: (applicationId) => {
+    return apiClient.get(`/api/jobs/applications/${applicationId}/cover-letter`, {
+      responseType: 'blob'
+    });
+  },
+  // Add admin-specific methods
+  getAllJobApplications: () => {
+    return apiClient.get('/api/jobs/applications/all');
+  },
+  getJobApplications: (jobId) => {
+    return apiClient.get(`/api/jobs/${jobId}/applications`);
+  },
+  updateApplicationStatus: (applicationId, data) => {
+    return apiClient.put(`/api/jobs/applications/${applicationId}`, data);
+  }
 };
 
 export {
@@ -207,5 +258,6 @@ export {
   noticeService,
   jobService,
   communityAPI,
-  instructorService
+  instructorService,
+  checkServerConnection
 }; 

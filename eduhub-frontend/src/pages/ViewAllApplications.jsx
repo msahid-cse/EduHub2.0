@@ -596,8 +596,12 @@ const ViewAllApplications = () => {
               
               <div className="mb-4">
                 <label className="block text-gray-300 text-sm font-medium mb-2">
-                  Feedback Message (Optional)
+                  Feedback Message
                 </label>
+                <div className="text-xs text-teal-400 mb-2 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  This feedback will be sent via email to the applicant and saved in the database.
+                </div>
                 <textarea
                   rows="4"
                   className="w-full px-4 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -606,6 +610,19 @@ const ViewAllApplications = () => {
                   placeholder="Provide feedback for this applicant..."
                   disabled={isSubmitting}
                 />
+              </div>
+              
+              <div className="bg-gray-900/60 p-3 rounded-md mb-4">
+                <h4 className="text-sm font-medium text-teal-400 mb-2">Job Details (Will be included in email)</h4>
+                <div className="text-sm text-gray-300">
+                  <div><strong>Position:</strong> {selectedApplication.job?.title}</div>
+                  <div><strong>Company:</strong> {selectedApplication.job?.company}</div>
+                  <div><strong>Location:</strong> {selectedApplication.job?.location}</div>
+                  <div><strong>Type:</strong> {selectedApplication.job?.type}</div>
+                  {selectedApplication.job?.salary && (
+                    <div><strong>Salary:</strong> {selectedApplication.job?.salary}</div>
+                  )}
+                </div>
               </div>
               
               <div className="flex justify-between border-t border-gray-700 pt-4">
@@ -626,7 +643,7 @@ const ViewAllApplications = () => {
                     disabled={isSubmitting}
                   >
                     <CheckCircle className="w-4 h-4 mr-1" />
-                    Accept
+                    Accept & Notify
                   </button>
                   
                   <button
@@ -636,7 +653,7 @@ const ViewAllApplications = () => {
                     disabled={isSubmitting}
                   >
                     <XCircle className="w-4 h-4 mr-1" />
-                    Reject
+                    Reject & Notify
                   </button>
                 </div>
               </div>

@@ -9,7 +9,8 @@ import {
   LogOut,
   ChevronRight,
   ChevronLeft,
-  User
+  User,
+  Briefcase
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +29,7 @@ function Sidebar({ setPage, activePage }) {
   const navItems = [
     { id: "home", label: "Home", icon: <Home size={20} /> },
     { id: "profile", label: "Profile", icon: <User size={20} /> },
+    { id: "applications", label: "My Applications", icon: <Briefcase size={20} /> },
     { id: "skill", label: "Skill Dev", icon: <Target size={20} /> },
     { id: "library", label: "Resources", icon: <BookOpen size={20} /> },
     { id: "cvbuilder", label: "CV Builder", icon: <FileText size={20} /> },

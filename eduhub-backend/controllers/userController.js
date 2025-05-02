@@ -8,9 +8,9 @@ import crypto from 'crypto';
 const verificationCodes = {};
 
 // Helper function to send verification email
-const sendVerificationEmail = async (email, verificationCode) => {
+const sendVerificationEmail = async (email, verificationCode, purpose = 'password_change') => {
   try {
-    console.log(`Attempting to send verification code ${verificationCode} to ${email}`);
+    console.log(`Attempting to send verification code ${verificationCode} to ${email} for ${purpose}`);
     
     // Check if we have email configuration in environment variables
     const emailUser = process.env.EMAIL_USER;
@@ -59,13 +59,31 @@ const sendVerificationEmail = async (email, verificationCode) => {
       });
     }
     
-    // Send mail with defined transport object
-    const info = await transporter.sendMail({
-      from: emailUser ? `"EduHub Support" <${emailUser}>` : '"EduHub Support" <support@eduhub.com>',
-      to: email,
-      subject: 'EduHub Password Change Verification Code',
-      text: `Your verification code for password change is: ${verificationCode}. This code will expire in 10 minutes.`,
-      html: `
+    // Configure email based on purpose
+    let subject, text, html;
+    
+    if (purpose === 'account_deletion') {
+      subject = 'EduHub Account Deletion Request';
+      text = `Your verification code for account deletion is: ${verificationCode}. This code will expire in 10 minutes. If you did not request to delete your account, please contact support immediately.`;
+      html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e53e3e;">EduHub Account Deletion</h2>
+          <p>You have requested to delete your account. Please use the following verification code to confirm your identity:</p>
+          <div style="background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 24px; letter-spacing: 5px; margin: 20px 0;">
+            <strong>${verificationCode}</strong>
+          </div>
+          <p>This code will expire in 10 minutes.</p>
+          <p><strong style="color: #e53e3e;">Warning:</strong> Account deletion is permanent and all your data will be lost.</p>
+          <p>If you did not request this action, please ignore this email or contact support immediately.</p>
+          <hr style="border: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #888; font-size: 12px;">EduHub Learning Platform</p>
+        </div>
+      `;
+    } else {
+      // Default to password change
+      subject = 'EduHub Password Change Verification Code';
+      text = `Your verification code for password change is: ${verificationCode}. This code will expire in 10 minutes.`;
+      html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #4a90e2;">EduHub Password Change</h2>
           <p>You have requested to change your password. Please use the following verification code:</p>
@@ -77,7 +95,16 @@ const sendVerificationEmail = async (email, verificationCode) => {
           <hr style="border: 1px solid #eee; margin: 20px 0;" />
           <p style="color: #888; font-size: 12px;">EduHub Learning Platform</p>
         </div>
-      `
+      `;
+    }
+    
+    // Send mail with defined transport object
+    const info = await transporter.sendMail({
+      from: emailUser ? `"EduHub Support" <${emailUser}>` : '"EduHub Support" <support@eduhub.com>',
+      to: email,
+      subject,
+      text,
+      html
     });
     
     console.log('Verification email sent:', info.messageId);
@@ -165,12 +192,21 @@ export const updateUserProfile = async (req, res) => {
     }
     
     if (skillsMap && typeof skillsMap === 'object') {
-      // Merge with existing skillsMap if it exists
-      userFields.skillsMap = {
-        ...(existingUser.skillsMap || {}),
-        ...skillsMap
-      };
-      console.log('Updating skills proficiency map');
+      // Convert skillsMap from frontend format to MongoDB Map format
+      const newSkillsMap = new Map();
+      
+      // Process each skill in the skillsMap
+      Object.keys(skillsMap).forEach(skill => {
+        if (skillsMap[skill] && typeof skillsMap[skill].proficiency !== 'undefined') {
+          newSkillsMap.set(skill, {
+            proficiency: skillsMap[skill].proficiency,
+            lastUpdated: skillsMap[skill].lastUpdated || new Date().toISOString()
+          });
+        }
+      });
+      
+      userFields.skillsMap = newSkillsMap;
+      console.log('Updating skills proficiency map with skills:', Array.from(newSkillsMap.keys()));
     }
     
     // Handle profile picture - check if it's a new base64 image or an existing URL
@@ -192,7 +228,7 @@ export const updateUserProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.userId,
       { $set: userFields },
-      { new: true }
+      { new: true, runValidators: true }
     ).select('-password');
     
     if (!user) {
@@ -200,7 +236,21 @@ export const updateUserProfile = async (req, res) => {
     }
     
     console.log('User profile updated successfully');
-    res.status(200).json(user);
+    
+    // Convert MongoDB Map back to a regular object for the response
+    const responseUser = user.toObject();
+    if (responseUser.skillsMap) {
+      const skillsMapObject = {};
+      
+      // Convert Map entries to regular object
+      responseUser.skillsMap.forEach((value, key) => {
+        skillsMapObject[key] = value;
+      });
+      
+      responseUser.skillsMap = skillsMapObject;
+    }
+    
+    res.status(200).json(responseUser);
   } catch (error) {
     console.error('Error updating user profile:', error);
     
@@ -434,5 +484,98 @@ export const trackCourseProgress = async (req, res) => {
   } catch (error) {
     console.error('Error tracking course progress:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Send account deletion verification code
+export const sendAccountDeletionCode = async (req, res) => {
+  try {
+    console.log('Account deletion verification code request received');
+    
+    const userId = req.user.userId;
+    
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Generate a random 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Set the verification code and expiration (10 minutes)
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    
+    // Save the user with verification code
+    await user.save();
+    
+    // Send the verification code via email with account_deletion purpose
+    const emailResult = await sendVerificationEmail(user.email, verificationCode, 'account_deletion');
+    
+    if (!emailResult.success) {
+      return res.status(500).json({ 
+        message: 'Failed to send verification code email',
+        error: emailResult.error
+      });
+    }
+    
+    res.status(200).json({ 
+      message: 'Verification code sent to your email',
+      previewUrl: emailResult.previewUrl // Only for development
+    });
+  } catch (error) {
+    console.error('Error sending account deletion verification code:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      details: error.message 
+    });
+  }
+};
+
+// Delete user account with verification
+export const deleteUserAccount = async (req, res) => {
+  try {
+    console.log('Account deletion request received');
+    
+    const { verificationCode } = req.body;
+    const userId = req.user.userId;
+    
+    if (!verificationCode) {
+      return res.status(400).json({ message: 'Verification code is required' });
+    }
+    
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Check verification code
+    if (user.verificationCode !== verificationCode) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+    
+    // Check if verification code has expired
+    if (user.verificationCodeExpires < Date.now()) {
+      return res.status(400).json({ 
+        message: 'Verification code has expired',
+        expired: true
+      });
+    }
+    
+    // Delete user from the database
+    await User.findByIdAndDelete(userId);
+    
+    // Return success response
+    res.status(200).json({ 
+      message: 'Your account has been successfully deleted'
+    });
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      details: error.message 
+    });
   }
 }; 

@@ -287,19 +287,61 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if email is verified
-    if (!user.isEmailVerified) {
-      return res.status(401).json({ 
-        message: 'Please verify your email before logging in',
-        needsVerification: true,
-        email: user.email
-      });
-    }
-
-    // Check password
+    // Check password - validate password first before proceeding with verification flow
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+      console.log('User tried to login with unverified email:', email);
+      
+      // Generate new verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      
+      // Update user with new verification code
+      user.verificationCode = verificationCode;
+      user.verificationCodeExpires = verificationCodeExpires;
+      await user.save();
+      
+      // Send verification email
+      const mailOptions = {
+        from: process.env.EMAIL_USER || 'development@example.com',
+        to: email,
+        subject: 'EduHub Email Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+            <h2 style="color: #00897b; text-align: center;">EduHub Verification</h2>
+            <p>Hello ${user.name},</p>
+            <p>You attempted to login with an unverified email. Please use the code below to verify your email:</p>
+            <div style="background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+              ${verificationCode}
+            </div>
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this verification, please ignore this email.</p>
+            <p>Best regards,<br>The EduHub Team</p>
+          </div>
+        `
+      };
+      
+      try {
+        // Send the verification email
+        await sendEmail(mailOptions);
+        console.log('Verification email sent to:', email);
+      } catch (emailError) {
+        console.error('Error sending verification email:', emailError);
+        // Continue even if email fails
+      }
+      
+      return res.status(401).json({ 
+        message: 'Please verify your email before logging in',
+        needsVerification: true,
+        email: user.email,
+        // Include the verification code in development environment only
+        verificationCode: process.env.NODE_ENV === 'development' ? verificationCode : undefined
+      });
     }
 
     // Generate JWT token

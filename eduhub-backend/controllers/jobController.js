@@ -4,6 +4,47 @@ import User from '../models/User.js';
 import { generateCoverLetterPDF } from '../utils/pdfGenerator.js';
 import path from 'path';
 import fs from 'fs';
+import nodemailer from 'nodemailer';
+import UserJobApplication from '../models/UserJobApplication.js';
+
+// Configure email transporter
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // use SSL
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Email sending function with better error handling
+const sendEmail = async (mailOptions) => {
+  if (process.env.NODE_ENV === 'development') {
+    // In development, log the email content but don't actually try to send
+    console.log('DEVELOPMENT MODE: Email would be sent with the following details:');
+    console.log('To:', mailOptions.to);
+    console.log('Subject:', mailOptions.subject);
+    console.log('Content:', mailOptions.html.substring(0, 100) + '...');
+    return { success: true, development: true };
+  }
+  
+  // In production, actually send the email
+  return new Promise((resolve, reject) => {
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Email sending error:', error);
+        reject(error);
+      } else {
+        console.log('Email sent:', info.response);
+        resolve(info);
+      }
+    });
+  });
+};
 
 // Get all jobs
 export const getAllJobs = async (req, res) => {
@@ -187,89 +228,110 @@ export const deleteJob = async (req, res) => {
   }
 };
 
-// Apply for a job
+// Apply for a job with CV upload
 export const applyForJob = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const { id } = req.params;
+    const { coverLetter } = req.body;
+    const userId = req.user.userId;
     
+    // Check if job exists
+    const job = await Job.findById(id);
     if (!job) {
       return res.status(404).json({ message: 'Job not found' });
     }
     
-    // Check if user already applied
-    const existingApplication = await JobApplication.findOne({
-      job: req.params.id,
-      applicant: req.user.userId
-    });
-
+    // Check if CV was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'Please upload a CV' });
+    }
+    
+    // Check if user has already applied
+    const existingApplication = await JobApplication.findOne({ job: id, applicant: userId });
     if (existingApplication) {
       return res.status(400).json({ message: 'You have already applied for this job' });
     }
     
-    // Get CV path from request (uploaded by multer middleware)
-    const cvPath = req.file ? req.file.path : null;
-    
-    if (!cvPath) {
-      return res.status(400).json({ message: 'CV is required' });
-    }
-    
-    // Get the user data for cover letter generation
-    const user = await User.findById(req.user.userId);
+    // Get user data for email
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Generate automatic cover letter if not provided
-    let coverLetter = req.body.coverLetter || '';
+    // Process CV file path
+    const cvPath = req.file.path;
     
-    if (!coverLetter || coverLetter.trim() === '') {
-      // Auto-generate a cover letter based on user profile and job details
-      coverLetter = generateAutoCoverLetter(user, job);
-    }
-    
-    // Generate PDF version of cover letter
+    // Generate auto cover letter if not provided
+    let finalCoverLetter = coverLetter || generateAutoCoverLetter(user, job);
     let coverLetterPdfPath = null;
-    try {
-      coverLetterPdfPath = await generateCoverLetterPDF(
-        coverLetter, 
-        job.title, 
-        user.name
-      );
-      // Convert to relative path
-      coverLetterPdfPath = coverLetterPdfPath.replace(/^\.\//, '');
-    } catch (pdfError) {
-      console.error('Error generating cover letter PDF:', pdfError);
-      // Continue with application even if PDF generation fails
+    
+    // Generate PDF for the cover letter
+    if (finalCoverLetter) {
+      try {
+        coverLetterPdfPath = await generateCoverLetterPDF(finalCoverLetter, user, job);
+      } catch (pdfError) {
+        console.error('Error generating cover letter PDF:', pdfError);
+        // Continue without PDF if there's an error
+      }
     }
     
-    // Create job application
-    const jobApplication = new JobApplication({
-      job: job._id,
-      applicant: req.user.userId,
+    // Create job application record for admin use
+    const newApplication = new JobApplication({
+      job: id,
+      applicant: userId,
       cvPath,
-      coverLetter,
-      coverLetterPdfPath
+      coverLetter: finalCoverLetter,
+      coverLetterPdfPath,
+      status: 'pending'
     });
     
-    // Save job application
-    await jobApplication.save();
+    await newApplication.save();
     
-    // Add user to job applicants
-    if (!job.applicants.includes(req.user.userId)) {
-      job.applicants.push(req.user.userId);
-      await job.save();
+    // Create a separate record for user dashboard
+    const userApplication = new UserJobApplication({
+      job: id,
+      applicant: userId,
+      applicantEmail: user.email,
+      cvPath,
+      coverLetter: finalCoverLetter,
+      coverLetterPdfPath,
+      status: 'pending',
+      originalApplication: newApplication._id
+    });
+    
+    await userApplication.save();
+    
+    // Add user to job applicants list
+    job.applicants.push(userId);
+    await job.save();
+    
+    // Send confirmation email
+    try {
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: `Application Confirmation - ${job.title} at ${job.company}`,
+        html: `
+          <h2>Application Confirmation</h2>
+          <p>Dear ${user.name},</p>
+          <p>Thank you for applying to the <strong>${job.title}</strong> position at <strong>${job.company}</strong>.</p>
+          <p>Your application has been received and is currently under review. You can check the status of your application in the "My Applications" section of your dashboard.</p>
+          <p>Best regards,</p>
+          <p>The EduHub Team</p>
+        `
+      };
+      
+      await sendEmail(mailOptions);
+    } catch (emailError) {
+      console.error('Error sending application confirmation email:', emailError);
+      // Continue even if email fails
     }
     
-    // Add job to user's applied jobs
-    if (!user.jobsApplied.includes(job._id)) {
-      user.jobsApplied.push(job._id);
-      await user.save();
-    }
-    
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Application submitted successfully',
-      application: jobApplication
+      application: newApplication
     });
+    
   } catch (error) {
     console.error('Error applying for job:', error);
     res.status(500).json({ message: 'Server error' });
@@ -351,30 +413,115 @@ export const getJobApplications = async (req, res) => {
   }
 };
 
-// Update application status (admin only)
+// Update application status - Modified to update both collections
 export const updateApplicationStatus = async (req, res) => {
   try {
+    const { applicationId } = req.params;
     const { status, adminFeedback } = req.body;
     
-    // Validate status
-    const validStatuses = ['pending', 'reviewing', 'accepted', 'rejected'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-    
-    // Update application
-    const application = await JobApplication.findById(req.params.applicationId);
+    // Find the admin application first
+    const application = await JobApplication.findById(applicationId);
     
     if (!application) {
       return res.status(404).json({ message: 'Application not found' });
     }
     
+    // Update the admin application
     application.status = status;
     if (adminFeedback) {
       application.adminFeedback = adminFeedback;
     }
     
     await application.save();
+    
+    // Find and update the corresponding user application
+    const userApplication = await UserJobApplication.findOne({ 
+      originalApplication: applicationId 
+    });
+    
+    if (userApplication) {
+      userApplication.status = status;
+      if (adminFeedback) {
+        userApplication.adminFeedback = adminFeedback;
+      }
+      await userApplication.save();
+    } else {
+      console.warn(`No matching user application found for admin application ID: ${applicationId}`);
+      
+      // If no matching user application exists, create one
+      const user = await User.findById(application.applicant);
+      
+      if (user) {
+        const newUserApplication = new UserJobApplication({
+          job: application.job,
+          applicant: application.applicant,
+          applicantEmail: user.email,
+          cvPath: application.cvPath,
+          coverLetter: application.coverLetter,
+          coverLetterPdfPath: application.coverLetterPdfPath,
+          status: status,
+          adminFeedback: adminFeedback || application.adminFeedback,
+          appliedAt: application.appliedAt,
+          originalApplication: application._id
+        });
+        
+        await newUserApplication.save();
+        console.log(`Created missing user application for admin application ID: ${applicationId}`);
+      }
+    }
+    
+    // Send email notification to the user about application status change
+    try {
+      // Get applicant and job information
+      const applicant = await User.findById(application.applicant);
+      const job = await Job.findById(application.job);
+      
+      if (applicant && job) {
+        // Prepare email content based on status
+        let subject = '';
+        let statusText = '';
+        
+        switch (status) {
+          case 'reviewing':
+            subject = `Your application for ${job.title} is under review`;
+            statusText = 'Your application is currently being reviewed by our team.';
+            break;
+          case 'accepted':
+            subject = `Congratulations! Your application for ${job.title} has been accepted`;
+            statusText = 'We are pleased to inform you that your application has been accepted.';
+            break;
+          case 'rejected':
+            subject = `Update on your application for ${job.title}`;
+            statusText = 'We regret to inform you that your application was not selected for this position.';
+            break;
+          default:
+            subject = `Update on your application for ${job.title}`;
+            statusText = `Your application status has been updated to: ${status}`;
+        }
+        
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: applicant.email,
+          subject: subject,
+          html: `
+            <h2>Application Status Update</h2>
+            <p>Dear ${applicant.name},</p>
+            <p>${statusText}</p>
+            <p><strong>Position:</strong> ${job.title}</p>
+            <p><strong>Company:</strong> ${job.company}</p>
+            ${adminFeedback ? `<p><strong>Feedback:</strong> ${adminFeedback}</p>` : ''}
+            <p>You can view details of your application in the "My Applications" section of your dashboard.</p>
+            <p>Best regards,</p>
+            <p>The EduHub Team</p>
+          `
+        };
+        
+        await sendEmail(mailOptions);
+      }
+    } catch (emailError) {
+      console.error('Error sending status update email:', emailError);
+      // Continue even if email fails
+    }
     
     res.status(200).json({
       message: 'Application status updated successfully',
@@ -386,11 +533,12 @@ export const updateApplicationStatus = async (req, res) => {
   }
 };
 
-// Get all applications for a user
+// Get all applications for a user - Updated to use UserJobApplication collection
 export const getUserApplications = async (req, res) => {
   try {
-    const applications = await JobApplication.find({ applicant: req.user.userId })
-      .populate('job', 'title company location type deadline')
+    // Fetch applications from the UserJobApplication collection
+    const applications = await UserJobApplication.find({ applicant: req.user.userId })
+      .populate('job', 'title company location type deadline salary contactEmail')
       .sort({ appliedAt: -1 });
     
     res.status(200).json(applications);

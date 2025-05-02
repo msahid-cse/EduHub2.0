@@ -80,6 +80,11 @@ function App() {
             <UserApplications />
           </ProtectedRoute>
         } />
+        <Route path="/my-applications" element={
+          <ProtectedRoute requiredRole="user">
+            <UserApplications />
+          </ProtectedRoute>
+        } />
         <Route path="/community" element={
           <ProtectedRoute>
             <Community />

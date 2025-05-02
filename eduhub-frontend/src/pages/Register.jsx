@@ -16,7 +16,10 @@ const Register = () => {
   const [selectedUniversity, setSelectedUniversity] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  
+  // We don't need registrationSuccess since we're using showVerification directly
+  // const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  
   const [error, setError] = useState('');
   const [countriesLoading, setCountriesLoading] = useState(true);
   
@@ -191,9 +194,14 @@ const Register = () => {
       localStorage.setItem('tempEmail', response.data.user.email);
       localStorage.setItem('userDepartment', departmentName);
       
-      // Show verification UI
+      // In development mode, also store the verification code for convenience
+      if (response.data.verificationCode) {
+        localStorage.setItem('dev_verification_code', response.data.verificationCode);
+      }
+      
+      // Show verification UI and set verification countdown
+      console.log('Setting showVerification to true');
       setShowVerification(true);
-      setRegistrationSuccess(true);
       setVerificationCountdown(120); // 2 minutes for resend
       setCanResend(false);
     } catch (error) {
@@ -278,29 +286,20 @@ const Register = () => {
     }
   };
 
-  if (registrationSuccess) {
-    return (
-      <div className="bg-slate-900 text-slate-200 flex items-center justify-center min-h-screen font-['Inter',_sans-serif]">
-        <div className="bg-slate-800 p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-md text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-teal-400 mb-6">Registration Successful!</h2>
-          <p className="text-gray-300 mb-6">You will be redirected shortly.</p>
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
   // Email verification screen
   if (showVerification) {
     // Get verification code from development storage if available
     const devVerificationCode = localStorage.getItem('dev_verification_code');
+    
+    // Make development mode more visible for debugging
+    const isDevelopment = process.env.NODE_ENV === 'development';
     
     return (
       <div className="bg-slate-900 text-slate-200 flex items-center justify-center min-h-screen font-['Inter',_sans-serif]">
         <div className="bg-slate-800 p-8 md:p-10 rounded-xl shadow-2xl w-full max-w-md">
           <h2 className="text-2xl md:text-3xl font-bold text-center text-teal-400 mb-6">Verify Your Email</h2>
           <p className="text-gray-300 text-center mb-6">
-            We've sent a verification code to <span className="font-semibold">{email}</span>
+            We've sent a verification code to <span className="font-semibold">{localStorage.getItem('tempEmail') || email}</span>
           </p>
           
           {verificationError && (
@@ -316,9 +315,14 @@ const Register = () => {
           )}
           
           {/* Development mode hint */}
-          {devVerificationCode && (
+          {isDevelopment && (
             <div className="bg-yellow-500/20 border border-yellow-500 text-yellow-200 px-4 py-3 rounded mb-4">
-              <p>Development mode: Verification code is <strong>{devVerificationCode}</strong></p>
+              <p>Development mode detected</p>
+              {devVerificationCode ? (
+                <p>Verification code: <strong>{devVerificationCode}</strong></p>
+              ) : (
+                <p>No verification code found in local storage. Check the console logs or backend response.</p>
+              )}
               <p className="text-xs mt-1">(This message only appears in development environment)</p>
             </div>
           )}

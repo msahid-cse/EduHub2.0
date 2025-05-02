@@ -105,6 +105,16 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/community', communityRoutes);
 
+// Add a health check route near the beginning of your routes
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'API server is running',
+    time: new Date().toISOString(),
+    version: '1.0'
+  });
+});
+
 // Health check route
 app.get("/", (req, res) => {
     res.json({ message: "EduHub API is running!" });

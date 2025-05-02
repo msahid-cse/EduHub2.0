@@ -6,7 +6,9 @@ import {
   getEnrolledCourses, 
   trackCourseProgress,
   requestVerificationCode,
-  changePassword
+  changePassword,
+  sendAccountDeletionCode,
+  deleteUserAccount
 } from '../controllers/userController.js';
 
 import { 
@@ -83,5 +85,15 @@ router.post('/learning/study-session', authMiddleware, addStudySession);
 // @desc    Set weekly learning goals
 // @access  Private
 router.put('/learning/weekly-goals', authMiddleware, setWeeklyGoals);
+
+// @route   POST /api/users/request-account-deletion
+// @desc    Request account deletion verification code
+// @access  Private
+router.post('/request-account-deletion', authMiddleware, sendAccountDeletionCode);
+
+// @route   DELETE /api/users/delete-account
+// @desc    Delete user account with verification
+// @access  Private
+router.delete('/delete-account', authMiddleware, deleteUserAccount);
 
 export default router; 
