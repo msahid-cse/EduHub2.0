@@ -32,7 +32,7 @@ import {
   GraduationCap,
   Calendar
 } from 'lucide-react';
-import { apiClient, communityAPI, instructorService } from '../api/apiClient';
+import { apiClient, communityAPI, instructorService, adminService } from '../api/apiClient';
 
 // CSS styles for animations and gradients
 const styles = {
@@ -137,6 +137,43 @@ const AdminDashboard = ({ initialSection }) => {
   const [universitySearch, setUniversitySearch] = useState('');
   const [filteredUniversities, setFilteredUniversities] = useState([]);
 
+  // Helper to get appropriate color for feedback category
+  const getCategoryColor = (category) => {
+    switch (category?.toLowerCase()) {
+      case 'bug':
+        return 'red';
+      case 'feature':
+        return 'green';
+      case 'enhancement':
+        return 'blue';
+      case 'content':
+        return 'purple';
+      case 'support':
+        return 'orange';
+      case 'security':
+        return 'amber';
+      case 'ui/ux':
+        return 'pink';
+      case 'performance':
+        return 'indigo';
+      default:
+        return 'gray';
+    }
+  };
+
+  // Helper to render feedback category badge with appropriate styling
+  const renderCategoryBadge = (category) => {
+    if (!category) return null;
+    
+    const color = getCategoryColor(category);
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-${color}-500/10 text-${color}-400 border border-${color}-500/30`}>
+        {category}
+      </span>
+    );
+  };
+
   // Define all the functions from the original component here
   // ...
 
@@ -148,7 +185,7 @@ const AdminDashboard = ({ initialSection }) => {
   };
 
   // Fetch dashboard data function
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
       setDashboardError('');
@@ -157,9 +194,10 @@ const AdminDashboard = ({ initialSection }) => {
       let hasErrors = false;
       let fallbackStats = { ...stats };
       
-      // Fetch stats
+      // Fetch stats using adminService
       try {
-        const statsResponse = await apiClient.get('/admin/dashboard');
+        console.log('Trying to fetch main dashboard stats...');
+        const statsResponse = await adminService.getDashboardStats();
         console.log('Stats response:', statsResponse.data);
         if (statsResponse.data) {
           setStats(statsResponse.data);
@@ -167,15 +205,104 @@ const AdminDashboard = ({ initialSection }) => {
         }
       } catch (statsError) {
         console.error('Error fetching stats:', statsError);
-        setDashboardError('Failed to load dashboard statistics');
+        console.log('Will try individual data fetching as fallback');
         hasErrors = true;
+        
+        // If main dashboard stats fail, try to fetch individual counts
+        try {
+          // Try to get user count through various methods
+          let userCount = 0;
+          
+          // Method 1: Try admin user count endpoint
+          try {
+            const usersResponse = await adminService.getUserCount();
+            if (usersResponse.data && typeof usersResponse.data.count === 'number') {
+              userCount = usersResponse.data.count;
+            }
+          } catch (userCountError) {
+            console.error('Admin user count failed:', userCountError);
+            
+            // Method 2: Try community API user listing
+            try {
+              const adminUsersResponse = await communityAPI.getAdminUsers();
+              if (adminUsersResponse.data && Array.isArray(adminUsersResponse.data)) {
+                userCount = adminUsersResponse.data.length;
+              }
+            } catch (adminUsersError) {
+              console.error('Admin users listing failed:', adminUsersError);
+              
+              // Method 3: Try global members endpoint
+              try {
+                const membersResponse = await communityAPI.getGlobalMembers();
+                if (membersResponse.data && Array.isArray(membersResponse.data)) {
+                  userCount = membersResponse.data.length;
+                }
+              } catch (membersError) {
+                console.error('Global members listing failed:', membersError);
+                
+                // Method 4: Try standard members endpoint
+                try {
+                  const localMembersResponse = await communityAPI.getMembers();
+                  if (localMembersResponse.data && Array.isArray(localMembersResponse.data)) {
+                    userCount = localMembersResponse.data.length;
+                  }
+                } catch (localMembersError) {
+                  console.error('Local members listing failed:', localMembersError);
+                }
+              }
+            }
+          }
+          
+          // Try to get other counts directly from APIs
+          let courseCount = 0;
+          try {
+            const coursesCountResponse = await apiClient.get('/api/courses/count');
+            if (coursesCountResponse.data && typeof coursesCountResponse.data.count === 'number') {
+              courseCount = coursesCountResponse.data.count;
+            }
+          } catch (coursesCountError) {
+            console.error('Courses count failed:', coursesCountError);
+          }
+          
+          let jobCount = 0;
+          try {
+            const jobsCountResponse = await apiClient.get('/api/jobs/count');
+            if (jobsCountResponse.data && typeof jobsCountResponse.data.count === 'number') {
+              jobCount = jobsCountResponse.data.count;
+            }
+          } catch (jobsCountError) {
+            console.error('Jobs count failed:', jobsCountError);
+          }
+          
+          let noticeCount = 0;
+          try {
+            const noticesCountResponse = await apiClient.get('/api/notices/count');
+            if (noticesCountResponse.data && typeof noticesCountResponse.data.count === 'number') {
+              noticeCount = noticesCountResponse.data.count;
+            }
+          } catch (noticesCountError) {
+            console.error('Notices count failed:', noticesCountError);
+          }
+          
+          // Update stats with what we could get
+          setStats(prev => ({
+            ...prev,
+            users: userCount || prev.users,
+            courses: courseCount || prev.courses,
+            jobs: jobCount || prev.jobs,
+            notices: noticeCount || prev.notices
+          }));
+          
+        } catch (individualFetchError) {
+          console.error('Failed to fetch individual counts:', individualFetchError);
+        }
       }
       
       // Fetch job applications data if not included in main stats
       try {
         if (!fallbackStats.jobsApplied) {
           console.log('Fetching job applications data...');
-          const jobsAppliedResponse = await apiClient.get('/jobs/applications/count');
+          const jobsAppliedResponse = await adminService.getJobApplicationsCount();
           console.log('Jobs applied response:', jobsAppliedResponse.data);
           if (jobsAppliedResponse.data && typeof jobsAppliedResponse.data.count === 'number') {
             // Update stats with job applications count
@@ -194,7 +321,7 @@ const AdminDashboard = ({ initialSection }) => {
       try {
         if (!fallbackStats.eventHits) {
           console.log('Fetching event hits data...');
-          const eventHitsResponse = await apiClient.get('/events/hits/count');
+          const eventHitsResponse = await adminService.getEventHitsCount();
           console.log('Event hits response:', eventHitsResponse.data);
           if (eventHitsResponse.data && typeof eventHitsResponse.data.count === 'number') {
             // Update stats with event hits count
@@ -211,44 +338,77 @@ const AdminDashboard = ({ initialSection }) => {
       
       // Fetch recent jobs
       try {
-        const jobsResponse = await apiClient.get('/jobs?limit=5');
+        const jobsResponse = await apiClient.get('/api/jobs?limit=5');
         console.log('Jobs response:', jobsResponse.data);
         if (jobsResponse.data) {
           setRecentJobs(jobsResponse.data);
         }
       } catch (jobsError) {
         console.error('Error fetching jobs:', jobsError);
-        hasErrors = true;
-        // Set some placeholder data for jobs
-        setRecentJobs([]);
+        // Try alternative endpoint
+        try {
+          const jobsAltResponse = await apiClient.get('/api/jobs/recent');
+          if (jobsAltResponse.data) {
+            setRecentJobs(jobsAltResponse.data);
+          } else {
+            setRecentJobs([]);
+            hasErrors = true;
+          }
+        } catch (jobsAltError) {
+          console.error('Alternative jobs fetch failed:', jobsAltError);
+          setRecentJobs([]);
+          hasErrors = true;
+        }
       }
       
       // Fetch recent notices
       try {
-        const noticesResponse = await apiClient.get('/notices?limit=5');
+        const noticesResponse = await apiClient.get('/api/notices?limit=5');
         console.log('Notices response:', noticesResponse.data);
         if (noticesResponse.data) {
           setRecentNotices(noticesResponse.data);
         }
       } catch (noticesError) {
         console.error('Error fetching notices:', noticesError);
-        hasErrors = true;
-        // Set some placeholder data for notices
-        setRecentNotices([]);
+        // Try alternative endpoint
+        try {
+          const noticesAltResponse = await apiClient.get('/api/notices/recent');
+          if (noticesAltResponse.data) {
+            setRecentNotices(noticesAltResponse.data);
+          } else {
+            setRecentNotices([]);
+            hasErrors = true;
+          }
+        } catch (noticesAltError) {
+          console.error('Alternative notices fetch failed:', noticesAltError);
+          setRecentNotices([]);
+          hasErrors = true;
+        }
       }
       
       // Fetch recent courses
       try {
-        const coursesResponse = await apiClient.get('/courses?limit=5');
+        const coursesResponse = await apiClient.get('/api/courses?limit=5');
         console.log('Courses response:', coursesResponse.data);
         if (coursesResponse.data) {
           setRecentCourses(coursesResponse.data);
         }
       } catch (coursesError) {
         console.error('Error fetching courses:', coursesError);
-        hasErrors = true;
-        // Set some placeholder data for courses
-        setRecentCourses([]);
+        // Try alternative endpoint
+        try {
+          const coursesAltResponse = await apiClient.get('/api/courses/recent');
+          if (coursesAltResponse.data) {
+            setRecentCourses(coursesAltResponse.data);
+          } else {
+            setRecentCourses([]);
+            hasErrors = true;
+          }
+        } catch (coursesAltError) {
+          console.error('Alternative courses fetch failed:', coursesAltError);
+          setRecentCourses([]);
+          hasErrors = true;
+        }
       }
       
       // Fetch recent instructors
@@ -261,25 +421,24 @@ const AdminDashboard = ({ initialSection }) => {
         }
       } catch (instructorsError) {
         console.error('Error fetching instructors:', instructorsError);
-        hasErrors = true;
-        // Set some placeholder data for instructors
         setRecentInstructors([]);
+        hasErrors = true;
       }
       
       // If we have errors but managed to get at least some data, show a warning
-      if (hasErrors && !dashboardError) {
+      if (hasErrors) {
         setDashboardError('Some dashboard data could not be loaded. You may see partial information.');
       }
       
       setIsLoading(false);
       console.log('Dashboard data fetching complete');
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setDashboardError('Failed to load dashboard data. Please try again.');
-        setIsLoading(false);
-      }
-    };
-    
+      setIsLoading(false);
+    }
+  };
+  
   // Use fetchDashboardData when component mounts
   useEffect(() => {
     console.log('AdminDashboard component mounted');
@@ -322,13 +481,13 @@ const AdminDashboard = ({ initialSection }) => {
     setFeedbackError('');
     console.log('Fetching feedback with status:', status, 'and category:', category);
     
-            try {
-              const token = localStorage.getItem('token');
+    try {
+      const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No authentication token found');
       }
       
-      let endpoint = '/feedback';
+      let endpoint = '/api/feedback';
       const params = [];
       
       if (status !== 'all') {
@@ -385,7 +544,7 @@ const AdminDashboard = ({ initialSection }) => {
     
     try {
       console.log('Deleting feedback with ID:', id);
-      await apiClient.delete(`/feedback/${id}`);
+      await apiClient.delete(`/api/feedback/${id}`);
       
       // Remove from state to update UI immediately
       setFeedbackList(prevList => prevList.filter(item => item._id !== id));
@@ -401,7 +560,7 @@ const AdminDashboard = ({ initialSection }) => {
   const updateFeedbackStatus = async (id, status) => {
     try {
       console.log(`Updating feedback ${id} status to: ${status}`);
-      await apiClient.put(`/feedback/${id}`, { status });
+      await apiClient.put(`/api/feedback/${id}`, { status });
       
       // Refresh feedback list
       fetchFeedback(feedbackFilter, categoryFilter);
@@ -425,19 +584,12 @@ const AdminDashboard = ({ initialSection }) => {
     
     setSendingResponse(true);
     try {
-      // Create a structured response object with additional metadata
-      const responseObject = {
-        message: responseText.trim(),
-        respondedAt: new Date().toISOString(),
-        respondedBy: localStorage.getItem('userId') || teamMembers[0].id
-      };
-      
-      // Ensure we're sending properly formatted string data, not objects
-      const adminResponseValue = JSON.stringify(responseObject);
+      // Use just the plain text response instead of a JSON object
+      const adminResponseValue = responseText.trim();
       
       console.log('Sending response to feedback:', selectedFeedback._id);
-      await apiClient.put(`/feedback/${selectedFeedback._id}`, { 
-        status: responseText.trim() ? 'resolved' : 'in-progress',
+      await apiClient.put(`/api/feedback/${selectedFeedback._id}`, { 
+        status: adminResponseValue ? 'resolved' : 'in-progress',
         adminResponse: adminResponseValue,
         assignedTo: assignedTo || null
       });
@@ -517,114 +669,32 @@ const AdminDashboard = ({ initialSection }) => {
     document.body.removeChild(link);
   };
 
-  // Format admin response for display - Enhanced version
+  // Format admin response for display - Simplified version
   const formatAdminResponse = (response) => {
     if (!response) return '';
     
     try {
-      // If it's already a string but looks like JSON, try to parse it
+      // If it's a string that looks like JSON, try to parse it
       if (typeof response === 'string' && (response.startsWith('{') || response.startsWith('['))) {
         try {
           const parsed = JSON.parse(response);
-          if (typeof parsed === 'object' && parsed !== null) {
-            // Format specific known response structure
-            if (parsed.message && parsed.respondedAt) {
-              return (
-                <div className="bg-gray-700/30 p-3 rounded border border-gray-600 mt-1">
-                  <p className="text-gray-200"><span className="font-semibold text-cyan-400">Response:</span> {parsed.message}</p>
-                  <p className="text-gray-400 text-xs mt-1">
-                    <span className="font-semibold">Responded at:</span> {formatDate(parsed.respondedAt)} 
-                    {parsed.respondedBy && parsed.respondedBy !== '000000000000000000000000' && 
-                      <span> by {teamMembers.find(m => m.id === parsed.respondedBy)?.name || 'Admin'}</span>}
-                  </p>
-                </div>
-              );
-            }
-            // Fallback for other object structures - improved layout
+          // If it has a message property, show just the message
+          if (parsed && parsed.message) {
             return (
               <div className="bg-gray-700/30 p-3 rounded border border-gray-600 mt-1">
-                {Object.entries(parsed).map(([key, value]) => {
-                  // Format key for display - capitalize and remove camelCase
-                  const displayKey = key
-                    .replace(/([A-Z])/g, ' $1') // Insert a space before all uppercase letters
-                    .replace(/^./, str => str.toUpperCase()); // Capitalize the first letter
-                  
-                  // Format value based on type and key name
-                  let displayValue = value;
-                  if (typeof value === 'object' && value !== null) {
-                    displayValue = JSON.stringify(value);
-                  } else if (
-                    key.toLowerCase().includes('date') || 
-                    key.toLowerCase().includes('at') ||
-                    key.toLowerCase().includes('time')
-                  ) {
-                    displayValue = formatDate(value);
-                  }
-                  
-                  return (
-                    <p key={key} className="mb-1">
-                      <span className="font-semibold text-cyan-400">{displayKey}:</span> {String(displayValue)}
-                    </p>
-                  );
-                })}
+                <p className="text-gray-200">{parsed.message}</p>
               </div>
             );
           }
-        } catch (parseError) {
-          console.log('Not a valid JSON string, treating as plain text');
+        } catch (err) {
+          // If parsing fails, just show the original string
         }
       }
       
-      // If it's an object, format it with improved layout
-      if (typeof response === 'object' && response !== null) {
-        if (response.message && response.respondedAt) {
-          return (
-            <div className="bg-gray-700/30 p-3 rounded border border-gray-600 mt-1">
-              <p className="text-gray-200"><span className="font-semibold text-cyan-400">Response:</span> {response.message}</p>
-              <p className="text-gray-400 text-xs mt-1">
-                <span className="font-semibold">Responded at:</span> {formatDate(response.respondedAt)} 
-                {response.respondedBy && response.respondedBy !== '000000000000000000000000' && 
-                  <span> by {teamMembers.find(m => m.id === response.respondedBy)?.name || 'Admin'}</span>}
-              </p>
-            </div>
-          );
-        }
-        
-        // Fallback for other object structures - improved layout
-        return (
-          <div className="bg-gray-700/30 p-3 rounded border border-gray-600 mt-1">
-            {Object.entries(response).map(([key, value]) => {
-              // Format key for display - capitalize and remove camelCase
-              const displayKey = key
-                .replace(/([A-Z])/g, ' $1') // Insert a space before all uppercase letters
-                .replace(/^./, str => str.toUpperCase()); // Capitalize the first letter
-              
-              // Format value based on type and key name
-              let displayValue = value;
-              if (typeof value === 'object' && value !== null) {
-                displayValue = JSON.stringify(value);
-              } else if (
-                key.toLowerCase().includes('date') || 
-                key.toLowerCase().includes('at') ||
-                key.toLowerCase().includes('time')
-              ) {
-                displayValue = formatDate(value);
-              }
-              
-              return (
-                <p key={key} className="mb-1">
-                  <span className="font-semibold text-cyan-400">{displayKey}:</span> {String(displayValue)}
-                </p>
-              );
-            })}
-          </div>
-        );
-      }
-      
-      // If it's a simple string without JSON structure, format it nicely
+      // For plain strings or if JSON parsing failed
       return (
         <div className="bg-gray-700/30 p-3 rounded border border-gray-600 mt-1">
-          <p className="text-gray-200"><span className="font-semibold text-cyan-400">Response:</span> {response}</p>
+          <p className="text-gray-200">{String(response)}</p>
         </div>
       );
     } catch (error) {
@@ -635,43 +705,6 @@ const AdminDashboard = ({ initialSection }) => {
         </div>
       );
     }
-  };
-
-  // Helper to get appropriate color for feedback category
-  const getCategoryColor = (category) => {
-    switch (category?.toLowerCase()) {
-      case 'bug':
-        return 'red';
-      case 'feature':
-        return 'green';
-      case 'enhancement':
-        return 'blue';
-      case 'content':
-        return 'purple';
-      case 'support':
-        return 'orange';
-      case 'security':
-        return 'amber';
-      case 'ui/ux':
-        return 'pink';
-      case 'performance':
-        return 'indigo';
-      default:
-        return 'gray';
-    }
-  };
-
-  // Helper to render feedback category badge with appropriate styling
-  const renderCategoryBadge = (category) => {
-    if (!category) return null;
-    
-    const color = getCategoryColor(category);
-    
-    return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-${color}-500/10 text-${color}-400 border border-${color}-500/30`}>
-        {category}
-      </span>
-    );
   };
 
   return (

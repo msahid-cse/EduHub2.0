@@ -7,9 +7,12 @@ const cvUploadDir = './uploads/cvs';
 const profileUploadDir = './uploads/profiles';
 const courseUploadDir = './uploads/courses';
 const instructorDataDir = './uploads/instructors';
+const courseVideosDir = './uploads/course-videos';
+const courseMaterialsDir = './uploads/course-materials';
+const csvImportsDir = './uploads/csv-imports';
 
 // Create directories if they don't exist
-[cvUploadDir, profileUploadDir, courseUploadDir, instructorDataDir].forEach(dir => {
+[cvUploadDir, profileUploadDir, courseUploadDir, instructorDataDir, courseVideosDir, courseMaterialsDir, csvImportsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -63,6 +66,30 @@ const instructorDataStorage = multer.diskStorage({
   }
 });
 
+// Configure storage for course videos
+const courseVideoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, courseVideosDir);
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Configure storage for course CSV imports
+const csvImportStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, csvImportsDir);
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
 // File filter for CV uploads
 const cvFilter = (req, file, cb) => {
   // Accept only PDF files
@@ -83,17 +110,53 @@ const imageFilter = (req, file, cb) => {
   }
 };
 
-// File filter for instructor data uploads (xlsx, csv)
+// File filter for instructor data uploads (Excel/CSV)
 const instructorDataFilter = (req, file, cb) => {
   // Accept only Excel and CSV files
-  if (
-    file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || // xlsx
-    file.mimetype === 'application/vnd.ms-excel' || // xls
-    file.mimetype === 'text/csv' // csv
-  ) {
+  const fileTypes = [
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv'
+  ];
+  
+  if (fileTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only Excel (xlsx/xls) and CSV files are allowed!'), false);
+    cb(new Error('Only Excel and CSV files are allowed!'), false);
+  }
+};
+
+// File filter for CSV/Excel imports
+const csvFilter = (req, file, cb) => {
+  // Accept only Excel and CSV files
+  const fileTypes = [
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv'
+  ];
+  
+  if (fileTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only Excel and CSV files are allowed!'), false);
+  }
+};
+
+// File filter for video uploads
+const videoFilter = (req, file, cb) => {
+  // Accept only video files
+  const videoTypes = [
+    'video/mp4', 
+    'video/mpeg', 
+    'video/quicktime', 
+    'video/x-msvideo', 
+    'video/x-ms-wmv'
+  ];
+  
+  if (videoTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only video files are allowed! Supported formats: MP4, MPEG, MOV, AVI, WMV'), false);
   }
 };
 
@@ -130,11 +193,29 @@ const instructorDataUpload = multer({
   fileFilter: instructorDataFilter
 });
 
+const courseVideoUpload = multer({
+  storage: courseVideoStorage,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB max file size for videos
+  },
+  fileFilter: videoFilter
+});
+
+const csvImportUpload = multer({
+  storage: csvImportStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max file size
+  },
+  fileFilter: csvFilter
+});
+
 // Export middlewares
 export const uploadCV = cvUpload.single('cv');
 export const uploadProfilePicture = profileUpload.single('profilePicture');
 export const uploadCourseThumbnail = courseUpload.single('thumbnail');
 export const uploadInstructorData = instructorDataUpload.single('instructorData');
+export const uploadCourseVideo = courseVideoUpload.single('video');
+export const uploadCSVFile = csvImportUpload.single('csvFile');
 
 // Combined upload object for more flexibility
 export const upload = {
@@ -148,6 +229,10 @@ export const upload = {
         return courseUpload.single('thumbnail');
       case 'instructorData':
         return instructorDataUpload.single('instructorData');
+      case 'video':
+        return courseVideoUpload.single('video');
+      case 'csvFile':
+        return csvImportUpload.single('csvFile');
       default:
         return cvUpload.single(fieldName);
     }
@@ -159,5 +244,7 @@ export default {
   uploadProfilePicture,
   uploadCourseThumbnail,
   uploadInstructorData,
+  uploadCourseVideo,
+  uploadCSVFile,
   upload
 }; 

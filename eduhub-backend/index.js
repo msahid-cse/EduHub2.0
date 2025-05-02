@@ -48,6 +48,7 @@ import instructorRoutes from './routes/instructor.js';
 import feedbackRoutes from './routes/feedback.js';
 import universityRoutes from './routes/university.js';
 import communityRoutes from './routes/community.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -60,7 +61,14 @@ const __dirname = path.dirname(__filename);
 app.use(morgan("tiny"));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cors());
+
+// CORS configuration
+const corsOptions = {
+  origin: '*', // Change in production to restrict origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -104,6 +112,7 @@ app.use('/api/instructors', instructorRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Add a health check route near the beginning of your routes
 app.get('/api/health', (req, res) => {

@@ -32,6 +32,7 @@ import JobSearchByCV from "./pages/JobSearchByCV";
 import JobApplications from "./pages/JobApplications";
 import UserApplications from "./pages/UserApplications";
 import ViewAllApplications from "./pages/ViewAllApplications";
+import TestConnection from "./TestConnection";
 // import Navbar from "./components/Navbar";
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
         <Route path="/courses" element={<ViewCourses />} />
         <Route path="/events" element={<ViewEvents />} />
         <Route path="/events/:id" element={<EventDetail />} />
+        <Route path="/test-connection" element={<TestConnection />} />
         <Route path="/edit-event/:id" element={
           <ProtectedRoute requiredRole="admin">
             <EditEvent />

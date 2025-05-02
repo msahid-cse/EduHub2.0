@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API base URL - can be overridden with environment variable
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000';
 
 // Base API client
 const apiClient = axios.create({
@@ -41,6 +41,30 @@ const checkServerConnection = async () => {
     return {
       success: false,
       message: 'Server connection failed',
+      error: error.message
+    };
+  }
+};
+
+// Test CSV template download directly
+const testCSVDownload = async () => {
+  try {
+    console.log(`Testing CSV template at ${API_BASE_URL}/api/courses/csv-template...`);
+    const response = await axios.get(`${API_BASE_URL}/api/courses/csv-template`, { 
+      responseType: 'blob',
+      timeout: 5000
+    });
+    console.log('CSV template download successful, content type:', response.headers['content-type']);
+    return {
+      success: true,
+      message: 'CSV template download successful',
+      data: response
+    };
+  } catch (error) {
+    console.error('CSV template download failed:', error.message);
+    return {
+      success: false,
+      message: 'CSV template download failed',
       error: error.message
     };
   }
@@ -197,9 +221,35 @@ const userService = {
 const courseService = {
   getAllCourses: () => apiClient.get('/api/courses'),
   getCourseById: (courseId) => apiClient.get(`/api/courses/${courseId}`),
+  createCourse: (courseData) => apiClient.post('/api/courses', courseData),
   enrollInCourse: (courseId, userId) => apiClient.post(`/api/courses/${courseId}/enroll`, { userId }),
   updateProgress: (progressData) => apiClient.post('/api/courses/update-progress', progressData),
   searchCourses: (query) => apiClient.get(`/api/courses/search?query=${query}`),
+  getCSVTemplate: () => {
+    return apiClient.get('/api/courses/csv-template', { 
+      responseType: 'blob',
+      headers: {
+        'Accept': 'text/csv'
+      },
+      timeout: 10000, // 10 second timeout
+    }).catch(error => {
+      console.error('CSV template request failed:', error);
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timed out. Server might be busy.');
+      }
+      throw error;
+    });
+  },
+  batchImportCourses: (formData) => apiClient.post('/api/courses/batch-import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  }),
+  uploadCourseMaterial: (courseId, formData) => apiClient.post(`/api/courses/${courseId}/materials`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  }),
 };
 
 const learningProgressService = {
@@ -249,6 +299,20 @@ const jobService = {
   }
 };
 
+// Admin service for dashboard operations
+const adminService = {
+  // Get dashboard statistics
+  getDashboardStats: () => apiClient.get('/api/admin/dashboard'),
+  // Get job applications count
+  getJobApplicationsCount: () => apiClient.get('/api/jobs/applications/count'),
+  // Get event hits count
+  getEventHitsCount: () => apiClient.get('/api/events/hits/count'),
+  // Get user count - multiple fallback options
+  getUserCount: () => apiClient.get('/api/admin/users/count'),
+  // Fallback methods for getting user counts
+  getUserCountFallback: () => apiClient.get('/api/users/count')
+};
+
 export {
   apiClient,
   authService,
@@ -259,5 +323,7 @@ export {
   jobService,
   communityAPI,
   instructorService,
-  checkServerConnection
+  checkServerConnection,
+  adminService,
+  testCSVDownload
 }; 

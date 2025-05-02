@@ -33,22 +33,52 @@ const courseSchema = new mongoose.Schema({
   },
   courseType: {
     type: String,
-    enum: ['academic', 'co-curricular'],
+    enum: ['academic', 'professional', 'co-curricular'],
     required: true
   },
   courseSegment: {
     type: String,
-    enum: ['video', 'theory'],
+    enum: ['video', 'theory', 'hybrid'],
     required: true
   },
+  // Video related fields
   videoUrl: {
     type: String,
-    required: function() { return this.courseSegment === 'video'; }
+    default: ''
   },
+  youtubeVideoUrl: {
+    type: String,
+    default: ''
+  },
+  youtubePlaylistUrl: {
+    type: String,
+    default: ''
+  },
+  driveVideoUrl: {
+    type: String,
+    default: ''
+  },
+  videoFiles: [{
+    fileName: String,
+    fileUrl: String,
+    fileSize: Number,
+    fileType: String,
+    uploadDate: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // Theory related fields
   theoryUrl: {
     type: String,
     required: function() { return this.courseSegment === 'theory'; }
   },
+  theoryLinks: [{
+    title: String,
+    url: String,
+    description: String
+  }],
+  // Department/Activity info
   department: {
     type: String,
     required: function() { return this.courseType === 'academic'; }
@@ -64,6 +94,7 @@ const courseSchema = new mongoose.Schema({
   tags: [{
     type: String
   }],
+  // Tracking fields
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -73,6 +104,15 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  // Import tracking
+  importedBatch: {
+    type: String,
+    default: ''
+  },
+  importedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

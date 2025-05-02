@@ -8,10 +8,38 @@ import {
   deleteCourse, 
   enrollCourse,
   getCoursesByDepartment,
-  getCoursesByActivityType 
+  getCoursesByActivityType,
+  batchImportCourses,
+  uploadCourseMaterials,
+  getCSVTemplate
 } from '../controllers/courseController.js';
+import { 
+  uploadCourseThumbnail,
+  uploadCSVFile,
+  uploadCourseVideo
+} from '../middleware/upload.js';
 
 const router = express.Router();
+
+// @route   GET /api/courses/csv-template
+// @desc    Get the CSV template for batch import
+// @access  Public (for testing, will later be changed to Private/Admin)
+router.get('/csv-template', getCSVTemplate);
+
+// @route   GET /api/courses/department/:department
+// @desc    Get courses by department
+// @access  Public
+router.get('/department/:department', getCoursesByDepartment);
+
+// @route   GET /api/courses/activity/:activityType
+// @desc    Get courses by activity type
+// @access  Public
+router.get('/activity/:activityType', getCoursesByActivityType);
+
+// @route   POST /api/courses/batch-import
+// @desc    Batch import courses from CSV/Excel file
+// @access  Private/Admin
+router.post('/batch-import', authMiddleware, adminOnly, uploadCSVFile, batchImportCourses);
 
 // @route   GET /api/courses
 // @desc    Get all courses
@@ -19,7 +47,7 @@ const router = express.Router();
 router.get('/', getAllCourses);
 
 // @route   GET /api/courses/:id
-// @desc    Get course by ID
+// @desc    Get a course by ID
 // @access  Public
 router.get('/:id', getCourseById);
 
@@ -43,14 +71,9 @@ router.delete('/:id', authMiddleware, adminOnly, deleteCourse);
 // @access  Private
 router.post('/:id/enroll', authMiddleware, enrollCourse);
 
-// @route   GET /api/courses/department/:department
-// @desc    Get courses by department
-// @access  Public
-router.get('/department/:department', getCoursesByDepartment);
-
-// @route   GET /api/courses/activity/:activityType
-// @desc    Get co-curricular courses by activity type
-// @access  Public
-router.get('/activity/:activityType', getCoursesByActivityType);
+// @route   POST /api/courses/:id/materials
+// @desc    Upload course materials (videos, docs, etc.)
+// @access  Private/Admin
+router.post('/:id/materials', authMiddleware, adminOnly, uploadCourseVideo, uploadCourseMaterials);
 
 export default router; 

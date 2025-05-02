@@ -1535,7 +1535,7 @@ const FeedbackSection = () => {
     try {
       // Use the API client instead of direct axios calls
       const token = localStorage.getItem('token');
-      const response = await apiClient.post('/feedback', feedback, {
+      const response = await apiClient.post('/api/feedback', feedback, {
         headers: {
           Authorization: `Bearer ${token}`
         }
