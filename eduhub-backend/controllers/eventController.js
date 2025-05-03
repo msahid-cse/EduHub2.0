@@ -1,10 +1,10 @@
-const Event = require('../models/Event');
-const EventHit = require('../models/EventHit');
-const User = require('../models/User');
-const nodemailer = require('nodemailer');
+import Event from '../models/Event.js';
+import EventHit from '../models/EventHit.js';
+import User from '../models/User.js';
+import nodemailer from 'nodemailer';
 
 // Get all events
-exports.getEvents = async (req, res) => {
+export const getEvents = async (req, res) => {
   try {
     const { limit = 10, page = 1, category, active } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -42,8 +42,19 @@ exports.getEvents = async (req, res) => {
   }
 };
 
+// Get event count (total number of events)
+export const getEventCount = async (req, res) => {
+  try {
+    const count = await Event.countDocuments();
+    res.status(200).json({ count });
+  } catch (error) {
+    console.error('Error counting events:', error);
+    res.status(500).json({ message: 'Error counting events', error: error.message });
+  }
+};
+
 // Get single event by ID
-exports.getEventById = async (req, res) => {
+export const getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     
@@ -71,8 +82,11 @@ exports.getEventById = async (req, res) => {
 };
 
 // Create new event
-exports.createEvent = async (req, res) => {
+export const createEvent = async (req, res) => {
   try {
+    console.log('Creating event with data:', req.body);
+    console.log('User data from auth:', req.user);
+    
     const {
       title,
       description,
@@ -92,10 +106,40 @@ exports.createEvent = async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
     
+    // Attempt to parse the date properly
+    let eventDate;
+    try {
+      // Try to parse date in multiple formats
+      eventDate = new Date(date);
+      
+      // Check if the date is valid
+      if (isNaN(eventDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid date format' });
+      }
+    } catch (dateError) {
+      console.error('Error parsing date:', dateError);
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+    
+    if (!req.user) {
+      console.error('Authentication error: User not authenticated');
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // Handle multiple potential user ID formats
+    const userId = req.user.userId || req.user.id || req.user._id;
+    
+    if (!userId) {
+      console.error('Authentication error: User ID missing', req.user);
+      return res.status(401).json({ message: 'Invalid authentication: User ID missing' });
+    }
+    
+    console.log('Creating event with user ID:', userId);
+    
     const event = new Event({
       title,
       description,
-      date,
+      date: eventDate,
       time,
       location,
       organizer,
@@ -104,20 +148,21 @@ exports.createEvent = async (req, res) => {
       isGlobal: isGlobal !== undefined ? isGlobal : true,
       registrationRequired: registrationRequired || false,
       registrationLink,
-      createdBy: req.user._id
+      createdBy: userId
     });
     
     await event.save();
+    console.log('Event saved successfully:', event._id);
     
     res.status(201).json({ message: 'Event created successfully', event });
   } catch (error) {
     console.error('Error creating event:', error);
-    res.status(500).json({ message: 'Error creating event', error: error.message });
+    res.status(500).json({ message: 'Error creating event', error: error.message, stack: error.stack });
   }
 };
 
 // Update event
-exports.updateEvent = async (req, res) => {
+export const updateEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     
@@ -146,7 +191,7 @@ exports.updateEvent = async (req, res) => {
 };
 
 // Delete event
-exports.deleteEvent = async (req, res) => {
+export const deleteEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     
@@ -172,7 +217,7 @@ exports.deleteEvent = async (req, res) => {
 };
 
 // Express interest in event
-exports.expressInterest = async (req, res) => {
+export const expressInterest = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     
@@ -209,7 +254,7 @@ exports.expressInterest = async (req, res) => {
 };
 
 // Remove interest in event
-exports.removeInterest = async (req, res) => {
+export const removeInterest = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     
@@ -231,7 +276,7 @@ exports.removeInterest = async (req, res) => {
 };
 
 // Get interested users for an event
-exports.getInterestedUsers = async (req, res) => {
+export const getInterestedUsers = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id).populate('interestedUsers', 'name email university department');
     
@@ -255,7 +300,7 @@ exports.getInterestedUsers = async (req, res) => {
 };
 
 // Get event hits count
-exports.getEventHitsCount = async (req, res) => {
+export const getEventHitsCount = async (req, res) => {
   try {
     const count = await EventHit.countDocuments();
     res.status(200).json({ count });
@@ -266,9 +311,9 @@ exports.getEventHitsCount = async (req, res) => {
 };
 
 // Send invitation emails to interested users
-exports.sendInvitations = async (req, res) => {
+export const sendInvitations = async (req, res) => {
   try {
-    const { subject, message, invitationType } = req.body;
+    const { subject, message, invitationType, emails, selectedUserIds } = req.body;
     const eventId = req.params.id;
     
     if (!subject || !message) {
@@ -296,18 +341,42 @@ exports.sendInvitations = async (req, res) => {
       // Get all users
       const users = await User.find({}, 'email name');
       recipients = users;
-    } else if (invitationType === 'specific' && req.body.emails && Array.isArray(req.body.emails)) {
-      // Specific emails
-      const emails = req.body.emails;
-      const users = await User.find({ email: { $in: emails } }, 'email name');
-      recipients = users;
+    } else if (invitationType === 'specific') {
+      // First try to use the selectedUserIds if provided
+      if (selectedUserIds && Array.isArray(selectedUserIds) && selectedUserIds.length > 0) {
+        const users = await User.find({ _id: { $in: selectedUserIds } }, 'email name');
+        recipients = users;
+      } 
+      // Then check manually entered emails
+      else if (emails && Array.isArray(emails) && emails.length > 0) {
+        // For manually entered emails, create simple user objects
+        const usersFromDB = await User.find({ email: { $in: emails } }, 'email name');
+        
+        // Add any users that weren't found in the database as basic objects
+        const existingEmails = usersFromDB.map(user => user.email);
+        const manualUsers = emails
+          .filter(email => !existingEmails.includes(email))
+          .map(email => ({ email, name: email.split('@')[0] }));
+        
+        recipients = [...usersFromDB, ...manualUsers];
+      } else {
+        return res.status(400).json({ message: 'No recipients specified for specific invitation type' });
+      }
     } else {
-      return res.status(400).json({ message: 'Invalid invitation type or missing emails' });
+      return res.status(400).json({ message: 'Invalid invitation type' });
     }
     
     if (recipients.length === 0) {
       return res.status(400).json({ message: 'No recipients found' });
     }
+    
+    // Format event date for display
+    const formattedDate = new Date(event.date).toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
     
     // Configure email transporter
     const transporter = nodemailer.createTransport({
@@ -315,9 +384,11 @@ exports.sendInvitations = async (req, res) => {
       service: process.env.EMAIL_SERVICE || 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
+        pass: process.env.EMAIL_PASS
       }
     });
+    
+    console.log(`Attempting to send invitations to ${recipients.length} recipients`);
     
     // Start sending emails
     let successCount = 0;
@@ -327,25 +398,41 @@ exports.sendInvitations = async (req, res) => {
       try {
         // Create personalized content
         const personalizedMessage = message
-          .replace('{{name}}', user.name || 'there')
-          .replace('{{eventTitle}}', event.title)
-          .replace('{{eventDate}}', new Date(event.date).toLocaleDateString())
-          .replace('{{eventTime}}', event.time)
-          .replace('{{eventLocation}}', event.location);
+          .replace(/{{name}}/g, user.name || 'there')
+          .replace(/{{eventTitle}}/g, event.title)
+          .replace(/{{eventDate}}/g, formattedDate)
+          .replace(/{{eventTime}}/g, event.time)
+          .replace(/{{eventLocation}}/g, event.location);
           
+        // Send the email
         await transporter.sendMail({
           from: `"EduHub Events" <${process.env.EMAIL_USER}>`,
           to: user.email,
           subject: subject,
-          html: personalizedMessage
+          html: personalizedMessage,
+          // Add text alternative for email clients that don't support HTML
+          text: personalizedMessage.replace(/<[^>]*>/g, '')
         });
         
+        console.log(`Successfully sent invitation to ${user.email}`);
         successCount++;
       } catch (emailError) {
         console.error(`Failed to send email to ${user.email}:`, emailError);
         failureCount++;
       }
     }
+    
+    // Save a record of the invitation sent
+    await EventHit.create({
+      event: event._id,
+      user: req.user._id,
+      action: 'invitation-sent',
+      details: {
+        recipients: recipients.length,
+        success: successCount,
+        failed: failureCount
+      }
+    });
     
     res.status(200).json({
       message: 'Invitations sent',

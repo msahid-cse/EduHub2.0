@@ -8,7 +8,11 @@ import {
   requestVerificationCode,
   changePassword,
   sendAccountDeletionCode,
-  deleteUserAccount
+  deleteUserAccount,
+  getAllUsers,
+  searchUsers,
+  deleteUserByAdmin,
+  sendViolationEmail
 } from '../controllers/userController.js';
 
 import { 
@@ -95,5 +99,27 @@ router.post('/request-account-deletion', authMiddleware, sendAccountDeletionCode
 // @desc    Delete user account with verification
 // @access  Private
 router.delete('/delete-account', authMiddleware, deleteUserAccount);
+
+// ---------- ADMIN ROUTES ----------
+
+// @route   GET /api/users
+// @desc    Get all users with pagination and sorting (admin only)
+// @access  Private/Admin
+router.get('/', authMiddleware, getAllUsers);
+
+// @route   GET /api/users/search
+// @desc    Search users by name or email (admin only)
+// @access  Private/Admin
+router.get('/search', authMiddleware, searchUsers);
+
+// @route   DELETE /api/users/:id
+// @desc    Delete user by admin
+// @access  Private/Admin
+router.delete('/:id', authMiddleware, deleteUserByAdmin);
+
+// @route   POST /api/users/:id/violation-email
+// @desc    Send violation email to user
+// @access  Private/Admin
+router.post('/:id/violation-email', authMiddleware, sendViolationEmail);
 
 export default router; 

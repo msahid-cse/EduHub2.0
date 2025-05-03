@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient, communityAPI, promotionalVideoService } from '../api/apiClient';
 import {
@@ -37,7 +37,6 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import EventSection from '../components/EventSection';
-import { Link } from 'react-router-dom';
 
 const Landing = () => {
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -69,9 +68,9 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-3">Resources</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Courses</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Instructors</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Jobs</a></li>
+              <li><a href="courses" className="text-gray-400 hover:text-teal-400 text-sm">Courses</a></li>
+              <li><a href="#teachers" className="text-gray-400 hover:text-teal-400 text-sm">Instructors</a></li>
+              <li><a href="jobs" className="text-gray-400 hover:text-teal-400 text-sm">Jobs</a></li>
             </ul>
           </div>
           
@@ -79,16 +78,16 @@ const Footer = () => {
             <h4 className="text-white font-semibold mb-3">Community</h4>
             <ul className="space-y-2">
               <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Forum</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Events</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Support</a></li>
+              <li><a href="#events" className="text-gray-400 hover:text-teal-400 text-sm">Events</a></li>
+              <li><a href="#feedback" className="text-gray-400 hover:text-teal-400 text-sm">Support</a></li>
             </ul>
           </div>
           
           <div>
             <h4 className="text-white font-semibold mb-3">Connect</h4>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Contact Us</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">About</a></li>
+              <li><Link to="/developers" className="text-gray-400 hover:text-teal-400 text-sm">Contact Us</Link></li>
+              <li><Link to="/developers" className="text-gray-400 hover:text-teal-400 text-sm">About</Link></li>
               <li><Link to="/developers" className="text-gray-400 hover:text-teal-400 text-sm">Developers</Link></li>
             </ul>
           </div>
@@ -98,8 +97,8 @@ const Footer = () => {
       <div className="border-t border-gray-800 mt-8 pt-6 container mx-auto text-center text-gray-400 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>© {new Date().getFullYear()} EduHub. All rights reserved.</div>
         <div className="flex gap-4">
-          <a href="#" className="font-['Source_Sans_Pro'] text-gray-300 hover:text-white transition-colors text-sm">Privacy Policy</a>
-          <a href="#" className="font-['Source_Sans_Pro'] text-gray-300 hover:text-white transition-colors text-sm">Terms of Service</a>
+          <Link to="/privacy-policy" className="font-['Source_Sans_Pro'] text-gray-300 hover:text-white transition-colors text-sm">Privacy Policy</Link>
+          <Link to="/terms-of-service" className="font-['Source_Sans_Pro'] text-gray-300 hover:text-white transition-colors text-sm">Terms of Service</Link>
         </div>
       </div>
     </footer>
@@ -121,8 +120,16 @@ const HomePage = ({ navigate, videoPlaying, setVideoPlaying }) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        // Import all needed services
+        const { 
+          courseService, 
+          instructorService, 
+          universityService, 
+          jobService 
+        } = await import('../api/apiClient');
+        
         // Fetch courses
-        const coursesResponse = await axios.get('http://localhost:5000/api/courses');
+        const coursesResponse = await courseService.getAllCourses();
         
         // Separate academic and co-curricular courses
         const academic = coursesResponse.data.filter(course => course.courseType === 'academic');
@@ -132,15 +139,15 @@ const HomePage = ({ navigate, videoPlaying, setVideoPlaying }) => {
         setCoCurricularCourses(coCurricular);
         
         // Fetch instructors
-        const instructorsResponse = await axios.get('http://localhost:5000/api/instructors');
+        const instructorsResponse = await instructorService.getAllInstructors();
         setInstructors(instructorsResponse.data);
         
         // Fetch universities in Bangladesh
-        const universitiesResponse = await axios.get('http://localhost:5000/api/universities?country=Bangladesh');
+        const universitiesResponse = await universityService.getUniversitiesByCountry('Bangladesh');
         setUniversities(universitiesResponse.data);
         
         // Fetch jobs
-        const jobsResponse = await axios.get('http://localhost:5000/api/jobs');
+        const jobsResponse = await jobService.getAllJobs();
         setJobs(jobsResponse.data);
         
       } catch (error) {
@@ -161,10 +168,11 @@ const HomePage = ({ navigate, videoPlaying, setVideoPlaying }) => {
     if (selectedUniversity) {
       const fetchNotices = async () => {
         try {
-          const response = await axios.get(`http://localhost:5000/api/notices?university=${selectedUniversity}`);
-          setNotices(response.data);
-        } catch (error) {
-          console.error('Error fetching notices:', error);
+          const { noticeService } = await import('../api/apiClient');
+          const noticesResponse = await noticeService.getAllNotices({ university: selectedUniversity });
+          setNotices(noticesResponse.data);
+        } catch (noticeError) {
+          console.error('Error fetching notices:', noticeError);
           setNotices([]);
         }
       };
@@ -469,7 +477,7 @@ const CoCurricularCoursesSection = ({ courses, isLoading }) => {
         </div>
         <div>
           <button 
-            onClick={() => navigate('/activities')}
+            onClick={() => navigate('/courses?type=co-curricular')}
             className="px-5 py-2 rounded-lg bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-colors border border-pink-500/30"
           >
             View All
@@ -620,12 +628,8 @@ const TeacherSection = ({ instructors, universities, selectedUniversity, setSele
     if (loggedIn) {
       const fetchUserDetails = async () => {
         try {
-          const token = localStorage.getItem('token');
-          const response = await axios.get('http://localhost:5000/api/auth/current-user', {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
+          const { authService } = await import('../api/apiClient');
+          const response = await authService.getCurrentUser();
           
           if (response.data && response.data.user) {
             setUserUniversity(response.data.user.university);
@@ -842,12 +846,8 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
       
       const fetchUserDetails = async () => {
         try {
-          const token = localStorage.getItem('token');
-          const response = await axios.get('http://localhost:5000/api/auth/current-user', {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
+          const { authService, noticeService } = await import('../api/apiClient');
+          const response = await authService.getCurrentUser();
           
           if (response.data && response.data.user && response.data.user.university) {
             const university = response.data.user.university;
@@ -859,7 +859,8 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
             // If selectedUniversity is not yet set, use the user's university
             if (!selectedUniversity) {
               try {
-                const noticesResponse = await axios.get(`http://localhost:5000/api/notices?university=${university}`);
+                const { noticeService } = await import('../api/apiClient');
+                const noticesResponse = await noticeService.getAllNotices({ university });
                 setUserNotices(noticesResponse.data);
               } catch (noticeError) {
                 console.error('Error fetching notices:', noticeError);
@@ -869,7 +870,8 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
           } else if (localUniversity && !selectedUniversity) {
             // If API didn't return university but we have it in localStorage, use that
             try {
-              const noticesResponse = await axios.get(`http://localhost:5000/api/notices?university=${localUniversity}`);
+              const { noticeService } = await import('../api/apiClient');
+              const noticesResponse = await noticeService.getAllNotices({ university: localUniversity });
               setUserNotices(noticesResponse.data);
             } catch (noticeError) {
               console.error('Error fetching notices:', noticeError);
@@ -881,7 +883,8 @@ const NoticeSection = ({ notices, selectedUniversity }) => {
           // If API call fails but we have university in localStorage, use that
           if (localUniversity && !selectedUniversity) {
             try {
-              const noticesResponse = await axios.get(`http://localhost:5000/api/notices?university=${localUniversity}`);
+              const { noticeService } = await import('../api/apiClient');
+              const noticesResponse = await noticeService.getAllNotices({ university: localUniversity });
               setUserNotices(noticesResponse.data);
             } catch (noticeError) {
               console.error('Error fetching notices:', noticeError);
@@ -1017,7 +1020,8 @@ const JobSection = ({ jobs, isLoading }) => {
     const fetchJobs = async () => {
       setLoading(true);
       try {
-        const response = await axios.get('http://localhost:5000/api/jobs');
+        const { jobService } = await import('../api/apiClient');
+        const response = await jobService.getAllJobs();
         setJobListings(response.data);
         setError(null);
       } catch (err) {
@@ -1049,7 +1053,7 @@ const JobSection = ({ jobs, isLoading }) => {
   };
 
   return (
-    <section className="mb-20">
+    <section className="mb-20" id="jobs">
       <h2 className="font-['Inter'] text-3xl sm:text-4xl font-bold text-white mb-6 text-center relative">
         <Briefcase className="w-6 h-6 inline-block mr-2 text-green-400" />
         Available Job Opportunities
@@ -1918,7 +1922,6 @@ const CallToActionSection = ({ navigate }) => {
     courses: 0,
     instructors: 0,
     students: 0,
-    universities: 0,
     jobs: 0
   });
   const [trustedUniversities, setTrustedUniversities] = useState([]);
@@ -1930,10 +1933,15 @@ const CallToActionSection = ({ navigate }) => {
     const fetchStats = async () => {
       setIsLoading(true);
       try {
-        // Fetch platform statistics
+        // First try to fetch all stats at once from platform stats endpoint
         const statsResponse = await axios.get('http://localhost:5000/api/platform/stats');
         if (statsResponse.data) {
-          setStats(statsResponse.data);
+          setStats({
+            courses: statsResponse.data.courses || 0,
+            instructors: statsResponse.data.instructors || 0,
+            students: statsResponse.data.students || 0,
+            jobs: statsResponse.data.jobs || 0
+          });
         }
 
         // Fetch trusted universities
@@ -1951,41 +1959,31 @@ const CallToActionSection = ({ navigate }) => {
         setError(null);
       } catch (err) {
         console.error('Error fetching platform data:', err);
-        setError('Failed to load some platform data');
         
-        // Try to fetch individual stats if the main endpoint fails
+        // Fallback to individual endpoints if main endpoint fails
         try {
-          // Fallback for courses count
-          const coursesResponse = await axios.get('http://localhost:5000/api/courses/count');
-          if (coursesResponse.data && coursesResponse.data.count) {
+          const coursesResponse = await axios.get('http://localhost:5000/api/platform/courses/count');
+          if (coursesResponse.data && coursesResponse.data.count !== undefined) {
             setStats(prev => ({ ...prev, courses: coursesResponse.data.count }));
           }
           
-          // Fallback for instructors count
-          const instructorsResponse = await axios.get('http://localhost:5000/api/instructors/count');
-          if (instructorsResponse.data && instructorsResponse.data.count) {
+          const instructorsResponse = await axios.get('http://localhost:5000/api/platform/instructors/count');
+          if (instructorsResponse.data && instructorsResponse.data.count !== undefined) {
             setStats(prev => ({ ...prev, instructors: instructorsResponse.data.count }));
           }
           
-          // Fallback for users/students count
-          const usersResponse = await axios.get('http://localhost:5000/api/users/count');
-          if (usersResponse.data && usersResponse.data.count) {
-            setStats(prev => ({ ...prev, students: usersResponse.data.count }));
+          const studentsResponse = await axios.get('http://localhost:5000/api/platform/students/count');
+          if (studentsResponse.data && studentsResponse.data.count !== undefined) {
+            setStats(prev => ({ ...prev, students: studentsResponse.data.count }));
           }
           
-          // Fallback for universities count
-          const universitiesCountResponse = await axios.get('http://localhost:5000/api/universities/count');
-          if (universitiesCountResponse.data && universitiesCountResponse.data.count) {
-            setStats(prev => ({ ...prev, universities: universitiesCountResponse.data.count }));
-          }
-          
-          // Fallback for jobs count
-          const jobsResponse = await axios.get('http://localhost:5000/api/jobs/count');
-          if (jobsResponse.data && jobsResponse.data.count) {
+          const jobsResponse = await axios.get('http://localhost:5000/api/platform/jobs/count');
+          if (jobsResponse.data && jobsResponse.data.count !== undefined) {
             setStats(prev => ({ ...prev, jobs: jobsResponse.data.count }));
           }
         } catch (fallbackErr) {
-          console.error('Fallback stats fetching failed:', fallbackErr);
+          console.error('Error fetching individual stats:', fallbackErr);
+          setError('Failed to load platform statistics');
         }
       } finally {
         setIsLoading(false);
@@ -2031,9 +2029,6 @@ const CallToActionSection = ({ navigate }) => {
               <div className="bg-teal-500/20 text-teal-300 px-4 py-2 rounded-full text-sm font-medium">
                 {stats.students.toLocaleString()}+ Students
               </div>
-              <div className="bg-amber-500/20 text-amber-300 px-4 py-2 rounded-full text-sm font-medium">
-                {stats.universities.toLocaleString()}+ Universities
-              </div>
               <div className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full text-sm font-medium">
                 {stats.jobs.toLocaleString()}+ Job Opportunities
               </div>
@@ -2069,7 +2064,7 @@ const CallToActionSection = ({ navigate }) => {
                   trustedUniversities.slice(0, 3).map((university) => (
                     <div key={university._id} className="flex flex-col items-center">
                       <img 
-                        src={university.logoUrl} 
+                        src={university.logoUrl ? `http://localhost:5000${university.logoUrl}` : "https://cdn-icons-png.flaticon.com/512/8074/8074804.png"} 
                         alt={university.name} 
                         className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
                         onClick={() => navigateToExternalSite(university.websiteUrl)}
@@ -2109,7 +2104,7 @@ const CallToActionSection = ({ navigate }) => {
                   industryPartners.slice(0, 3).map((partner) => (
                     <div key={partner._id} className="flex flex-col items-center">
                       <img 
-                        src={partner.logoUrl} 
+                        src={partner.logoUrl ? `http://localhost:5000${partner.logoUrl}` : "https://cdn-icons-png.flaticon.com/512/8074/8074881.png"}
                         alt={partner.name} 
                         className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
                         onClick={() => navigateToExternalSite(partner.websiteUrl)}
@@ -2119,21 +2114,21 @@ const CallToActionSection = ({ navigate }) => {
                     </div>
                   ))
                 ) : (
-                  // Fallback if no partners are fetched
+                  // Fallback if no industry partners are fetched
                   <>
                     <img 
-                      src="https://cdn-icons-png.flaticon.com/512/5969/5969205.png" 
-                      alt="Company Logo" 
+                      src="https://cdn-icons-png.flaticon.com/512/8074/8074881.png" 
+                      alt="Industry Logo" 
                       className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
                     />
                     <img 
-                      src="https://cdn-icons-png.flaticon.com/512/882/882730.png" 
-                      alt="Company Logo" 
+                      src="https://cdn-icons-png.flaticon.com/512/8074/8074969.png" 
+                      alt="Industry Logo" 
                       className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
                     />
                     <img 
-                      src="https://cdn-icons-png.flaticon.com/512/5969/5969126.png" 
-                      alt="Company Logo" 
+                      src="https://cdn-icons-png.flaticon.com/512/8074/8074924.png" 
+                      alt="Industry Logo" 
                       className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
                     />
                   </>
@@ -2141,12 +2136,6 @@ const CallToActionSection = ({ navigate }) => {
               </div>
             </div>
           </div>
-          
-          {error && (
-            <p className="text-amber-400 text-xs mt-4">
-              Note: Some platform statistics may not be up to date.
-            </p>
-          )}
         </div>
       </div>
     </section>

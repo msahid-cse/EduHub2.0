@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Search, 
@@ -16,6 +16,7 @@ import Navbar from '../components/Navbar';
 
 function ViewCourses() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [courses, setCourses] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,19 @@ function ViewCourses() {
     courseSegment: '',
     skillLevel: ''
   });
+  
+  // Handle query parameters on component mount
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const typeParam = queryParams.get('type');
+    
+    if (typeParam) {
+      setFilters(prev => ({
+        ...prev,
+        courseType: typeParam
+      }));
+    }
+  }, [location.search]);
   
   // Fetch all courses
   useEffect(() => {

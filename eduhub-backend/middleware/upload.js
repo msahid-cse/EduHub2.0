@@ -18,6 +18,12 @@ const csvImportsDir = './uploads/csv-imports';
   }
 });
 
+// Event uploads directory
+const eventUploadDir = './uploads/events';
+if (!fs.existsSync(eventUploadDir)) {
+  fs.mkdirSync(eventUploadDir, { recursive: true });
+}
+
 // Configure storage for CVs
 const cvStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -82,6 +88,18 @@ const courseVideoStorage = multer.diskStorage({
 const csvImportStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, csvImportsDir);
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// Configure storage for event images
+const eventImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, eventUploadDir);
   },
   filename: (req, file, cb) => {
     // Create unique filename with timestamp and original extension
@@ -222,6 +240,14 @@ const csvImportUpload = multer({
   fileFilter: csvFilter
 });
 
+const eventImageUpload = multer({
+  storage: eventImageStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max file size
+  },
+  fileFilter: imageFilter
+});
+
 // Export promotional video upload middleware
 export const uploadPromotionalVideo = multer({
   storage: promotionalVideoStorage,
@@ -238,6 +264,7 @@ export const uploadCourseThumbnail = courseUpload.single('thumbnail');
 export const uploadInstructorData = instructorDataUpload.single('instructorData');
 export const uploadCourseVideo = courseVideoUpload.single('video');
 export const uploadCSVFile = csvImportUpload.single('csvFile');
+export const uploadEventImage = eventImageUpload.single('image');
 
 // Combined upload object for more flexibility
 export const upload = {
@@ -257,6 +284,8 @@ export const upload = {
         return csvImportUpload.single('csvFile');
       case 'promotionalVideo':
         return uploadPromotionalVideo;
+      case 'image':
+        return eventImageUpload.single('image');
       default:
         return cvUpload.single(fieldName);
     }
@@ -271,5 +300,6 @@ export default {
   uploadCourseVideo,
   uploadCSVFile,
   uploadPromotionalVideo,
+  uploadEventImage,
   upload
 }; 

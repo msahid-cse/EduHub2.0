@@ -578,4 +578,238 @@ export const deleteUserAccount = async (req, res) => {
       details: error.message 
     });
   }
+};
+
+// Admin: Get all users with pagination and sorting
+export const getAllUsers = async (req, res) => {
+  try {
+    // Verify admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied: Admin privileges required' });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    
+    // Handle sorting
+    const sortBy = req.query.sortBy || 'name';
+    const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1;
+    
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder;
+
+    // Get total count for pagination
+    const total = await User.countDocuments();
+    
+    // Get users with pagination and sorting
+    const users = await User.find()
+      .select('-password -verificationCode')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      users,
+      total,
+      page,
+      pages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('Error getting all users:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Admin: Search users by name or email
+export const searchUsers = async (req, res) => {
+  try {
+    // Verify admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied: Admin privileges required' });
+    }
+
+    const query = req.query.query || '';
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Create search criteria
+    const searchCriteria = {
+      $or: [
+        { name: { $regex: query, $options: 'i' } },
+        { email: { $regex: query, $options: 'i' } }
+      ]
+    };
+
+    // Get total count for pagination
+    const total = await User.countDocuments(searchCriteria);
+    
+    // Get users with pagination
+    const users = await User.find(searchCriteria)
+      .select('-password -verificationCode')
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      users,
+      total,
+      page,
+      pages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Admin: Delete user
+export const deleteUserByAdmin = async (req, res) => {
+  try {
+    // Verify admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied: Admin privileges required' });
+    }
+
+    const userId = req.params.id;
+    
+    // Check if the target user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Prevent deletion of admin users by other admins for security
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: 'Cannot delete another admin user' });
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+    
+    // Here you might also want to handle dependent data like:
+    // - Delete user's posts, comments, etc.
+    // - Delete enrollments
+    // - Remove from any groups or communities
+    // - Notify other systems if needed
+
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Admin: Send violation email to user
+export const sendViolationEmail = async (req, res) => {
+  try {
+    // Verify admin role
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied: Admin privileges required' });
+    }
+
+    const userId = req.params.id;
+    const { subject, message } = req.body;
+    
+    // Validate required fields
+    if (!subject || !message) {
+      return res.status(400).json({ message: 'Subject and message are required' });
+    }
+    
+    // Check if the target user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Set up email transport
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+    
+    let transporter;
+    
+    if (emailUser && emailPass) {
+      // Use Gmail for sending emails
+      console.log(`Using Gmail with account: ${emailUser}`);
+      
+      transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: emailUser,
+          pass: emailPass
+        }
+      });
+    } else {
+      // Fall back to Ethereal for testing if no email credentials are provided
+      console.log('No email credentials found in .env, falling back to Ethereal test account');
+      
+      // For development - create a test account with Ethereal
+      let testAccount;
+      try {
+        testAccount = await nodemailer.createTestAccount();
+        console.log('Created test account:', testAccount.user);
+      } catch (testAccountError) {
+        console.error('Error creating test account:', testAccountError);
+        // Continue with default values if test account creation fails
+        testAccount = {
+          user: 'test@example.com',
+          pass: 'testpassword'
+        };
+      }
+      
+      // Create a transporter with Ethereal email for testing
+      transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+    }
+    
+    // Send the violation email
+    const info = await transporter.sendMail({
+      from: emailUser ? `"EduHub Administration" <${emailUser}>` : '"EduHub Administration" <admin@eduhub.com>',
+      to: user.email,
+      subject,
+      text: message,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e53e3e;">Notice from EduHub Administration</h2>
+          <hr style="border: 1px solid #eee; margin: 20px 0;" />
+          <div style="line-height: 1.6;">
+            ${message.replace(/\n/g, '<br/>')}
+          </div>
+          <hr style="border: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #888; font-size: 12px;">
+            This is an official communication from the EduHub Administration Team.
+            <br>Please do not reply to this email. If you need to contact us, please use the feedback form on the platform.
+          </p>
+        </div>
+      `
+    });
+    
+    console.log('Violation email sent:', info.messageId);
+    
+    // Only for Ethereal test accounts
+    const previewUrl = info.messageId?.includes('ethereal') ? 
+      nodemailer.getTestMessageUrl(info) : null;
+    
+    if (previewUrl) {
+      console.log('Preview URL:', previewUrl);
+    }
+    
+    // Record this action in admin logs (if implemented)
+    // ...
+    
+    res.status(200).json({ 
+      message: 'Violation email sent successfully',
+      previewUrl: previewUrl || null
+    });
+  } catch (error) {
+    console.error('Error sending violation email:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 }; 

@@ -6,6 +6,8 @@ import Register from "./pages/Register";
 import OAuthCallback from "./pages/OAuthCallback";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminLogin from "./pages/AdminLogin";
+import AdminManagement from "./pages/AdminManagement";
 import ResourceLibrary from "./pages/ResourceLibrary";
 import SkillDevelopment from "./pages/SkillDevelopment";
 import CVBuilder from "./pages/CVBuilder";
@@ -20,6 +22,7 @@ import JobDetails from "./pages/JobDetails";
 import CourseDetails from "./pages/CourseDetails";
 import Community from "./pages/Community";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
 import AddNewCourse from "./pages/AddNewCourse";
 import AddNewInstructor from "./pages/AddNewInstructor";
 import ManageCommunity from "./pages/ManageCommunity";
@@ -36,6 +39,9 @@ import TestConnection from "./TestConnection";
 import Developers from './pages/Developers';
 import PromotionalVideoManager from './pages/PromotionalVideoManager';
 import PartnerManagement from './pages/PartnerManagement';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import UserControl from './pages/UserControl';
 
 
 // import Navbar from "./components/Navbar";
@@ -48,8 +54,11 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/developers" element={<Developers />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/login" element={<Login />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/register" element={<Register />} />
         <Route path="/oauth-callback" element={<OAuthCallback />} />
         <Route path="/jobs" element={<ViewJobs />} />
@@ -124,86 +133,96 @@ function App() {
           </ProtectedRoute>
         } />
         
-        {/* Admin Routes */}
+        {/* Admin Routes - Updated to use ProtectedAdminRoute */}
         <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <AdminDashboard />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/admindashboard" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <AdminDashboard />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/post-notice" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <PostNotice />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/upload-course" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <UploadCourse />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/post-job" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <PostJob />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/view-applications" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <ViewAllApplications />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/job-applications/:id" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <JobApplications />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/manage-jobs" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <ViewJobs />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/add-course" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <AddNewCourse />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/add-event" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <AddNewEvent />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/manage-instructors" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <AddNewInstructor />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/manage-community" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <ManageCommunity />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/events/:id/send-invitations" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <SendEventInvitations />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/admin/promotional-video" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <PromotionalVideoManager />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/promotional-video-manager" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <PromotionalVideoManager />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
         } />
         <Route path="/admin/partners" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedAdminRoute>
             <PartnerManagement />
-          </ProtectedRoute>
+          </ProtectedAdminRoute>
+        } />
+        <Route path="/admin/user-control" element={
+          <ProtectedAdminRoute>
+            <UserControl />
+          </ProtectedAdminRoute>
+        } />
+        <Route path="/admin/admin-management" element={
+          <ProtectedAdminRoute>
+            <AdminManagement />
+          </ProtectedAdminRoute>
         } />
       </Routes>
     </BrowserRouter>

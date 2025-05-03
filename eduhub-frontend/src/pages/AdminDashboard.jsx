@@ -32,9 +32,13 @@ import {
   GraduationCap,
   Calendar,
   PlayCircle,
-  Building2
+  Building2,
+  Shield,
+  LogOut,
+  Home
 } from 'lucide-react';
 import { apiClient, communityAPI, instructorService, adminService } from '../api/apiClient';
+import { adminAuthService } from '../api/adminApiClient';
 
 // CSS styles for animations and gradients
 const styles = {
@@ -56,6 +60,39 @@ const keyframes = `
 
 const AdminDashboard = ({ initialSection }) => {
   const navigate = useNavigate();
+  const [adminName, setAdminName] = useState('Admin');
+  
+  // Add effect to get admin name
+  useEffect(() => {
+    const storedAdminName = localStorage.getItem('adminName');
+    if (storedAdminName) {
+      setAdminName(storedAdminName);
+    }
+    
+    // Verify admin authentication
+    const verifyAdmin = async () => {
+      try {
+        if (adminAuthService.isAuthenticated()) {
+          const response = await adminAuthService.getCurrentAdmin();
+          if (response.data && response.data.admin) {
+            setAdminName(response.data.admin.name);
+            localStorage.setItem('adminName', response.data.admin.name);
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying admin:', error);
+        // If there's an error, we'll let the ProtectedAdminRoute handle the redirect
+      }
+    };
+    
+    verifyAdmin();
+  }, []);
+  
+  // Add admin logout handler
+  const handleAdminLogout = () => {
+    adminAuthService.logout();
+    // The logout function in adminAuthService already handles the redirect
+  };
   
   // Utility function to safely render potentially problematic data types
   const safeRender = (value) => {
@@ -65,6 +102,9 @@ const AdminDashboard = ({ initialSection }) => {
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
   };
+  
+  // Add reference for feedback section
+  const feedbackSectionRef = useRef(null);
   
   const [stats, setStats] = useState({
     users: 0,
@@ -335,6 +375,25 @@ const AdminDashboard = ({ initialSection }) => {
         }
       } catch (eventHitsError) {
         console.error('Error fetching event hits count:', eventHitsError);
+        // Don't fail completely, just show 0
+      }
+      
+      // Fetch events count if not included in main stats
+      try {
+        if (!fallbackStats.events) {
+          console.log('Fetching events count data...');
+          const eventsResponse = await adminService.getEventCount();
+          console.log('Events count response:', eventsResponse.data);
+          if (eventsResponse.data && typeof eventsResponse.data.count === 'number') {
+            // Update stats with events count
+            setStats(prev => ({
+              ...prev,
+              events: eventsResponse.data.count
+            }));
+          }
+        }
+      } catch (eventsError) {
+        console.error('Error fetching events count:', eventsError);
         // Don't fail completely, just show 0
       }
       
@@ -709,22 +768,49 @@ const AdminDashboard = ({ initialSection }) => {
     }
   };
 
+  // Add function to scroll to feedback section
+  const scrollToFeedbackSection = () => {
+    if (feedbackSectionRef && feedbackSectionRef.current) {
+      feedbackSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
-    <div className="bg-gray-900 text-gray-100 min-h-screen">
-      {/* Header/Navbar */}
-      <header className="bg-gray-800 p-4 border-b border-gray-700">
+    <div className="min-h-screen bg-gray-900 text-white">
+      <style>{keyframes}</style>
+      <header className="bg-gray-800 py-4 px-6 border-b border-gray-700">
         <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-cyan-400">Edu Hub Admin Dashboard</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-300">Welcome, Admin!</span>
-            <button onClick={() => navigate('/')} className="text-gray-400 hover:text-white">
-              View Site
+          <div className="flex items-center">
+            <Shield className="h-8 w-8 text-blue-500 mr-3" />
+            <h1 className="text-2xl font-semibold text-white">Admin Dashboard</h1>
+          </div>
+          <div className="flex items-center">
+            <Link 
+              to="/" 
+              className="flex items-center text-gray-300 hover:text-white hover:bg-gray-700 px-3 py-2 rounded-md transition-colors mr-3"
+            >
+              <Home className="h-5 w-5 mr-2" />
+              View Home
+            </Link>
+            <Link 
+              to="/admin/admin-management" 
+              className="flex items-center text-gray-300 hover:text-white hover:bg-gray-700 px-3 py-2 rounded-md transition-colors mr-3"
+            >
+              <Users className="h-5 w-5 mr-2" />
+              Admin Management
+            </Link>
+            <span className="mr-4 text-gray-300">Welcome, {adminName}</span>
+            <button
+              onClick={handleAdminLogout}
+              className="flex items-center text-gray-300 hover:text-white hover:bg-gray-700 px-3 py-2 rounded-md transition-colors"
+            >
+              <LogOut className="h-5 w-5 mr-2" />
+              Logout
             </button>
-            <Settings className="h-5 w-5 text-gray-400 cursor-pointer hover:text-cyan-400 transition duration-200" />
           </div>
         </div>
       </header>
-
+      
       <div className="container mx-auto p-6">
         {/* Stats Cards - First Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
@@ -833,97 +919,72 @@ const AdminDashboard = ({ initialSection }) => {
         )}
         
         {/* Quick Actions Section */}
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">Quick Actions</h2>
-          </div>
-          
-          {/* First Row of Quick Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <button 
-              onClick={() => navigate('/post-job')}
-              className="bg-gradient-to-br from-green-600/20 to-green-800/20 p-3 rounded-lg border border-green-700/50 hover:border-green-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <Briefcase className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Post New Job</span>
-            </button>
+        <div className="mb-8 bg-gray-800/40 p-6 rounded-xl border border-gray-700/50">
+          <h2 className="text-xl font-semibold mb-4 text-white">Quick Actions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            
+            {/* Action buttons */}
+            <Link to="/post-notice" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <Bell className="h-8 w-8 mb-2 text-cyan-400 group-hover:text-cyan-300" />
+              <span className="text-sm font-medium">Post Notice</span>
+            </Link>
+            
+            <Link to="/upload-course" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <BookOpen className="h-8 w-8 mb-2 text-green-400 group-hover:text-green-300" />
+              <span className="text-sm font-medium">Upload Course</span>
+            </Link>
+            
+            <Link to="/post-job" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <Briefcase className="h-8 w-8 mb-2 text-amber-400 group-hover:text-amber-300" />
+              <span className="text-sm font-medium">Post Job</span>
+            </Link>
+            
+            <Link to="/add-event" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <Calendar className="h-8 w-8 mb-2 text-violet-400 group-hover:text-violet-300" />
+              <span className="text-sm font-medium">Add Event</span>
+            </Link>
+            
+            <Link to="/admin/user-control" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <Shield className="h-8 w-8 mb-2 text-red-400 group-hover:text-red-300" />
+              <span className="text-sm font-medium">User Control</span>
+            </Link>
+            
+            <Link to="/manage-instructors" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <GraduationCap className="h-8 w-8 mb-2 text-blue-400 group-hover:text-blue-300" />
+              <span className="text-sm font-medium">Manage Instructors</span>
+            </Link>
+            
+            <Link to="/view-applications" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <FileText className="h-8 w-8 mb-2 text-yellow-400 group-hover:text-yellow-300" />
+              <span className="text-sm font-medium">View Applications</span>
+            </Link>
+            
+            <Link to="/manage-community" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <MessageSquare className="h-8 w-8 mb-2 text-pink-400 group-hover:text-pink-300" />
+              <span className="text-sm font-medium">Manage Community</span>
+            </Link>
+            
+            <Link to="/admin/promotional-video" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <PlayCircle className="h-8 w-8 mb-2 text-green-400 group-hover:text-green-300" />
+              <span className="text-sm font-medium">Promo Videos</span>
+            </Link>
+            
+            <Link to="/admin/partners" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <Building2 className="h-8 w-8 mb-2 text-orange-400 group-hover:text-orange-300" />
+              <span className="text-sm font-medium">Partner Management</span>
+            </Link>
+            
+            <Link to="/manage-jobs" className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group">
+              <Edit className="h-8 w-8 mb-2 text-amber-400 group-hover:text-amber-300" />
+              <span className="text-sm font-medium">Edit Jobs</span>
+            </Link>
             
             <button 
-              onClick={() => navigate('/post-notice')}
-              className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 p-3 rounded-lg border border-purple-700/50 hover:border-purple-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
+              onClick={scrollToFeedbackSection}
+              className="flex flex-col items-center justify-center bg-gray-700/50 hover:bg-gray-700 p-4 rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-900/20 group"
             >
-              <Bell className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Post New Notice</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/add-course')}
-              className="bg-gradient-to-br from-orange-600/20 to-orange-800/20 p-3 rounded-lg border border-orange-700/50 hover:border-orange-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <BookOpen className="w-5 h-5 text-orange-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Add New Course</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/view-applications')}
-              className="bg-gradient-to-br from-cyan-600/20 to-cyan-800/20 p-3 rounded-lg border border-cyan-700/50 hover:border-cyan-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <FileText className="w-5 h-5 text-cyan-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">View Applications</span>
-            </button>
-          </div>
-          
-          {/* Second Row of Quick Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <button 
-              onClick={() => navigate('/manage-instructors')}
-              className="bg-gradient-to-br from-indigo-600/20 to-indigo-800/20 p-3 rounded-lg border border-indigo-700/50 hover:border-indigo-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <Users className="w-5 h-5 text-indigo-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Add New Instructor</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/community')}
-              className="bg-gradient-to-br from-teal-600/20 to-teal-800/20 p-3 rounded-lg border border-teal-700/50 hover:border-teal-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <Globe className="w-5 h-5 text-teal-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Manage Community</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/add-event')}
-              className="bg-gradient-to-br from-amber-600/20 to-amber-800/20 p-3 rounded-lg border border-amber-700/50 hover:border-amber-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <Calendar className="w-5 h-5 text-amber-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Add New Event</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/manage-feedback')}
-              className="bg-gradient-to-br from-red-600/20 to-red-800/20 p-3 rounded-lg border border-red-700/50 hover:border-red-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <MessageCircle className="w-5 h-5 text-red-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Manage Feedback</span>
-            </button>
-          </div>
-          
-          {/* Third Row of Quick Actions - NEW */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button 
-              onClick={() => navigate('/admin/promotional-video')}
-              className="bg-gradient-to-br from-red-600/20 to-red-800/20 p-3 rounded-lg border border-red-700/50 hover:border-red-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <PlayCircle className="w-5 h-5 text-red-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Manage Promotional Video</span>
-            </button>
-            
-            <button 
-              onClick={() => navigate('/admin/partners')}
-              className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 p-3 rounded-lg border border-purple-700/50 hover:border-purple-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
-            >
-              <Building2 className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
-              <span className="text-sm font-medium text-white">Manage Partners & Universities</span>
+              <Mail className="h-8 w-8 mb-2 text-indigo-400 group-hover:text-indigo-300" />
+              <span className="text-sm font-medium">User Feedback</span>
             </button>
           </div>
         </div>
@@ -1139,7 +1200,7 @@ const AdminDashboard = ({ initialSection }) => {
       </div>
 
         {/* User Feedback Section */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg mb-8">
+        <div ref={feedbackSectionRef} className="bg-gray-800 rounded-lg p-6 border border-gray-700 shadow-lg mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-white">User Feedback & Suggestions</h2>
             <div className="flex space-x-3">

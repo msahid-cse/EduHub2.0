@@ -1,51 +1,55 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Github, Linkedin, Mail, ArrowLeft } from 'lucide-react';
+import { Github, Linkedin, Mail, ArrowLeft, Globe } from 'lucide-react';
 
 const Developers = () => {
   const navigate = useNavigate();
 
   // Instructor data
   const instructor = {
-    name: "Dr. Jane Smith",
+    name: "Md. Saiful Islam Bhuiyan",
     title: "Project Instructor",
     department: "Computer Science & Engineering",
-    university: "University of Bangladesh",
-    email: "janesmith@example.com",
-    linkedin: "https://linkedin.com/in/janesmith",
-    github: "https://github.com/janesmith",
-    image: "https://randomuser.me/api/portraits/women/44.jpg",
-    bio: "PhD in Computer Science with expertise in Web Development and Software Engineering. Leading EduHub 2.0 to revolutionize education technology in Bangladesh."
+    university: "Green University of Bangladesh",
+    email: "saiful_islam@cse.green.ac.bd",
+    linkedin: "https://www.linkedin.com/in/md-saiful-islam-bhuiyan-8487a9241/?originalSubdomain=bd",
+    github: "#",
+    portfolio: "#",
+    image: "https://media.licdn.com/dms/image/v2/D5603AQG_Y9UFTTs1CQ/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1686282786466?e=1751500800&v=beta&t=4g-og-Upf6UxlDltY19g80-O7MiDmsz7cMuNDZ6MYGY",
+    bio: "Lecturer at Green University of Bangladesh | Studies MSc Engg.(CSE) in BUET"
   };
 
   // Developers data
   const developers = [
     {
-      name: "Mohammad Ali",
+      name: "Md. Sahid",
       role: "Full Stack Developer",
-      email: "mohammadali@example.com",
-      linkedin: "https://linkedin.com/in/mohammadali",
-      github: "https://github.com/mohammadali",
-      image: "https://randomuser.me/api/portraits/men/32.jpg",
-      bio: "Specialized in MERN stack development with focus on performance optimization and responsive design."
+      email: "msahid.cse@gmail.com",
+      linkedin: "https://www.linkedin.com/in/msahid-cse/",
+      github: "https://github.com/msahid-cse",
+      portfolio: "#",
+      image: "https://media.licdn.com/dms/image/v2/D4E03AQHEWtWCZl8-CA/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1695474462749?e=1751500800&v=beta&t=-tjNpzVIrQp7SZu7WZRvarzE34cmU8_NA-XIhAi-Q1A",
+      bio: "Specialized in MERN stack development with focus on performance optimization and responsive design. Focused on server optimization, database design, and implementing secure authentication systems."
     },
     {
-      name: "Fatima Rahman",
-      role: "UX/UI Designer & Frontend Developer",
-      email: "fatimarahman@example.com",
-      linkedin: "https://linkedin.com/in/fatimarahman",
-      github: "https://github.com/fatimarahman",
-      image: "https://randomuser.me/api/portraits/women/65.jpg",
+      name: "Bithi Saha Mom",
+      role: "UX/UI Designer",
+      email: "bithisahamom@gmail.com",
+      linkedin: "https://www.linkedin.com/in/bithi-saha-886301248/",
+      github: "#",
+      portfolio: "#",
+      image: "https://media.licdn.com/dms/image/v2/D5603AQHZ4HKGXCeW6Q/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1677003523550?e=1751500800&v=beta&t=TceIS-9haHJKS8-7JcMABmIF8JwsUWp75Wn9x59SNss",
+      bio: "Passionate about creating intuitive user interfaces with expertise Figma and React and TailwindCSS."
+    },
+    {
+      name: "Sanjid Ahmmed",
+      role: "Frontend Developer",
+      email: "sanjid.sa19@gmail.com",
+      linkedin: "https://www.linkedin.com/in/sanjid-ahmmed-191sa/",
+      github: "https://github.com/sanjid191",
+      portfolio: "#",
+      image: "https://media.licdn.com/dms/image/v2/D5603AQEL92m33bR9vw/profile-displayphoto-shrink_800_800/B56ZYBcEiFHQAc-/0/1743780858853?e=1751500800&v=beta&t=zQQG7qNvHrG6xO5jkboTMwLF_Aqs_hdhwGMPLUaefWs",
       bio: "Passionate about creating intuitive user interfaces with expertise in React and TailwindCSS."
-    },
-    {
-      name: "Rahul Khan",
-      role: "Backend Developer & DevOps",
-      email: "rahulkhan@example.com",
-      linkedin: "https://linkedin.com/in/rahulkhan",
-      github: "https://github.com/rahulkhan",
-      image: "https://randomuser.me/api/portraits/men/75.jpg",
-      bio: "Focused on server optimization, database design, and implementing secure authentication systems."
     }
   ];
 
@@ -74,13 +78,22 @@ const Developers = () => {
         
         <p className="text-gray-300 mb-6">{person.bio}</p>
         
-        <div className="flex space-x-4">
+        <div className="flex flex-wrap gap-4">
           <a 
             href={`mailto:${person.email}`} 
             className="flex items-center text-gray-400 hover:text-teal-400 transition-colors"
           >
             <Mail className="w-5 h-5 mr-2" />
             <span className="text-sm">Email</span>
+          </a>
+          <a 
+            href={person.portfolio} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex items-center text-gray-400 hover:text-teal-400 transition-colors"
+          >
+            <Globe className="w-5 h-5 mr-2" />
+            <span className="text-sm">Portfolio</span>
           </a>
           <a 
             href={person.linkedin} 

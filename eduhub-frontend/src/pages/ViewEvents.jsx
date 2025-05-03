@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, MapPin, Clock, Users, ChevronRight, Filter, Search, Calendar as CalendarIcon, Edit, Trash, Eye, Heart, X, AlertTriangle, Check, ExternalLink } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, ChevronRight, Filter, Search, Calendar as CalendarIcon, Edit, Trash, Eye, Heart, X, AlertTriangle, Check, ExternalLink, Mail, ArrowLeft } from 'lucide-react';
 import eventService from '../api/eventService';
+import InterestedUsersModal from '../components/InterestedUsersModal';
 
 const ViewEvents = () => {
   const navigate = useNavigate();
@@ -11,7 +12,8 @@ const ViewEvents = () => {
   const [filter, setFilter] = useState({
     category: 'all',
     active: true,
-    search: ''
+    search: '',
+    interestMin: '' // Minimum number of interested users
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -22,6 +24,9 @@ const ViewEvents = () => {
   const [showConfirmDelete, setShowConfirmDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [userRole, setUserRole] = useState('user'); // Default to user, will be updated from token
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [interestedUsers, setInterestedUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   
   useEffect(() => {
     // Get user role from token
@@ -70,6 +75,14 @@ const ViewEvents = () => {
           event.description.toLowerCase().includes(searchTerm) ||
           event.location.toLowerCase().includes(searchTerm) ||
           event.organizer.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      // Filter by minimum number of interested users if specified
+      if (filter.interestMin && !isNaN(parseInt(filter.interestMin))) {
+        const minInterested = parseInt(filter.interestMin);
+        filteredEvents = filteredEvents.filter(event => 
+          event.interestedUsers && event.interestedUsers.length >= minInterested
         );
       }
       
@@ -143,6 +156,26 @@ const ViewEvents = () => {
     }
   };
 
+  const handleViewInterestedUsers = async (event) => {
+    setSelectedEvent(event);
+    setLoadingUsers(true);
+    
+    try {
+      const response = await eventService.getInterestedUsers(event._id);
+      setInterestedUsers(response.users || []);
+    } catch (err) {
+      console.error('Error fetching interested users:', err);
+      setInterestedUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const closeInterestedUsersModal = () => {
+    setSelectedEvent(null);
+    setInterestedUsers([]);
+  };
+
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
@@ -181,7 +214,18 @@ const ViewEvents = () => {
     <div className="min-h-screen bg-gray-900 text-white py-12">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <h1 className="text-3xl font-bold">Events</h1>
+          <div className="flex items-center gap-4">
+            {userRole === 'admin' && (
+              <button
+                onClick={() => navigate('/admin')}
+                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-md text-sm flex items-center"
+              >
+                <ArrowLeft size={16} className="mr-1" />
+                Back to Dashboard
+              </button>
+            )}
+            <h1 className="text-3xl font-bold">Events</h1>
+          </div>
           {userRole === 'admin' && (
             <Link
               to="/add-event"
@@ -216,7 +260,7 @@ const ViewEvents = () => {
               </form>
             </div>
             
-            <div className="flex items-center gap-2 text-sm w-full md:w-auto">
+            <div className="flex items-center gap-2 text-sm w-full md:w-auto flex-wrap">
               <label className="text-gray-400 flex items-center mr-2">
                 <Filter size={16} className="mr-1" />
                 Filter:
@@ -248,6 +292,23 @@ const ViewEvents = () => {
                   Show only upcoming
                 </label>
               </div>
+              
+              {userRole === 'admin' && (
+                <div className="ml-4 flex items-center">
+                  <label htmlFor="interest-min" className="text-gray-300 mr-2">
+                    Min. Interest:
+                  </label>
+                  <input 
+                    type="number"
+                    id="interest-min"
+                    min="0"
+                    value={filter.interestMin}
+                    onChange={(e) => handleFilter('interestMin', e.target.value)}
+                    className="w-16 bg-gray-700 border border-gray-600 rounded-md px-2 py-1 focus:outline-none focus:border-teal-500"
+                    placeholder="#"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -258,7 +319,7 @@ const ViewEvents = () => {
             <CalendarIcon size={48} className="mx-auto text-gray-600 mb-4" />
             <h3 className="text-xl font-medium text-gray-300 mb-2">No events found</h3>
             <p className="text-gray-400">
-              {filter.search || filter.category !== 'all' 
+              {filter.search || filter.category !== 'all' || filter.interestMin
                 ? 'Try adjusting your search or filters' 
                 : 'There are no events available at the moment'}
             </p>
@@ -319,6 +380,13 @@ const ViewEvents = () => {
                       <Users className="w-4 h-4 mr-2 text-teal-500" />
                       <span>Organizer: {event.organizer}</span>
                     </div>
+                    
+                    {userRole === 'admin' && (
+                      <div className="flex items-center text-gray-400 text-sm">
+                        <Heart className="w-4 h-4 mr-2 text-teal-500" />
+                        <span>Interested: {event.interestedUsers ? event.interestedUsers.length : 0}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex justify-between items-center mt-4">
@@ -332,6 +400,22 @@ const ViewEvents = () => {
                     
                     {userRole === 'admin' && (
                       <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewInterestedUsers(event)}
+                          className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors text-gray-300 hover:text-white"
+                          title="View Interested Users"
+                        >
+                          <Heart size={16} />
+                        </button>
+                        
+                        <Link
+                          to={`/events/${event._id}/send-invitations`}
+                          className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors text-gray-300 hover:text-white"
+                          title="Send Invitations"
+                        >
+                          <Mail size={16} />
+                        </Link>
+                        
                         <button
                           onClick={() => navigate(`/edit-event/${event._id}`)}
                           className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors text-gray-300 hover:text-white"
@@ -451,6 +535,15 @@ const ViewEvents = () => {
               </button>
             </nav>
           </div>
+        )}
+        
+        {/* Interested Users Modal */}
+        {selectedEvent && (
+          <InterestedUsersModal 
+            event={selectedEvent}
+            interestedUsers={interestedUsers}
+            onClose={closeInterestedUsersModal}
+          />
         )}
       </div>
     </div>

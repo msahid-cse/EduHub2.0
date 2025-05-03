@@ -1,5 +1,6 @@
 import Department from '../models/Department.js';
 import User from '../models/User.js';
+import { seedPartners } from '../seed/seedPartners.js';
 
 // Seed initial data on startup
 export const seedInitialData = async () => {
@@ -42,6 +43,10 @@ export const seedInitialData = async () => {
       await Department.insertMany(departmentsToInsert);
       console.log(`Successfully seeded ${departmentsToInsert.length} departments`);
     }
+    
+    // Seed partners data
+    await seedPartners();
+    
   } catch (error) {
     console.error('Error seeding initial data:', error);
   }

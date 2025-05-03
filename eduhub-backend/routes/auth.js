@@ -69,6 +69,22 @@ router.get('/github/callback',
   githubAuthCallback
 );
 
+// @route   GET /api/auth/verify-token
+// @desc    Verify if a token is valid
+// @access  Public (but requires token)
+router.get('/verify-token', authMiddleware, (req, res) => {
+  // If the middleware passes, the token is valid
+  res.status(200).json({ 
+    valid: true, 
+    user: {
+      id: req.user.id || req.user.userId || req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role
+    }
+  });
+});
+
 // Diagnostic route for email - REMOVE in production
 router.get('/email-diagnostic', (req, res) => {
   // Only available in development

@@ -208,7 +208,7 @@ const authService = {
   },
 
   getCurrentUser: () => {
-    return apiClient.get('/api/users/me');
+    return apiClient.get('/api/auth/current-user');
   },
 };
 
@@ -269,7 +269,7 @@ const learningProgressService = {
 };
 
 const noticeService = {
-  getAllNotices: () => apiClient.get('/api/notices'),
+  getAllNotices: (params) => apiClient.get('/api/notices', { params }),
   getNoticeById: (noticeId) => apiClient.get(`/api/notices/${noticeId}`),
   createNotice: (noticeData) => apiClient.post('/api/notices', noticeData),
 };
@@ -316,6 +316,8 @@ const adminService = {
   getJobApplicationsCount: () => apiClient.get('/api/jobs/applications/count'),
   // Get event hits count
   getEventHitsCount: () => apiClient.get('/api/events/hits/count'),
+  // Get event count
+  getEventCount: () => apiClient.get('/api/events/count'),
   // Get user count - multiple fallback options
   getUserCount: () => apiClient.get('/api/admin/users/count'),
   // Fallback methods for getting user counts

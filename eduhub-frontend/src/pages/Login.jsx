@@ -409,6 +409,12 @@ function LoginPage() {
           Sign Up
         </NavLink>
       </div>
+      
+      <div className="text-center text-slate-500 text-xs mt-4">
+        <NavLink to="/admin-login" className="hover:text-teal-400 transition duration-200">
+          Admin Login
+        </NavLink>
+      </div>
     </div>
   );
 }

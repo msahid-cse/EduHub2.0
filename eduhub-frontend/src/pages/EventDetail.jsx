@@ -176,8 +176,8 @@ const EventDetail = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white py-12">
       <div className="container mx-auto px-4">
-        {/* Back Button */}
-        <div className="mb-6">
+        {/* Back Buttons */}
+        <div className="mb-6 flex flex-wrap gap-4">
           <button
             onClick={() => navigate('/events')}
             className="inline-flex items-center text-gray-400 hover:text-teal-400 transition-colors"
@@ -185,6 +185,16 @@ const EventDetail = () => {
             <ArrowLeft size={18} className="mr-1" />
             Back to Events
           </button>
+          
+          {userRole === 'admin' && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="inline-flex items-center text-gray-400 hover:text-blue-400 transition-colors"
+            >
+              <ArrowLeft size={18} className="mr-1" />
+              Back to Admin Dashboard
+            </button>
+          )}
         </div>
         
         {actionSuccess && (
