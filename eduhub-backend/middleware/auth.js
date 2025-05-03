@@ -21,15 +21,25 @@ export const authMiddleware = async (req, res, next) => {
     // Add user from payload
     req.user = decoded;
     
+    // Ensure userId is available in standard format
+    if (!req.user.userId && (req.user.id || req.user._id)) {
+      req.user.userId = req.user.id || req.user._id;
+      console.log('Set userId from alternative field:', req.user.userId);
+    }
+    
     // Validate user role if possible (won't block execution if user not found)
     try {
-      const user = await User.findById(decoded.userId);
+      const user = await User.findById(req.user.userId || req.user.id || req.user._id);
       if (user) {
         // Update role from database to ensure it's current
         req.user.role = user.role;
         req.user.name = user.name;
         req.user.email = user.email;
         req.user.university = user.university;
+        // Ensure userId is in all standard formats
+        req.user.userId = user._id.toString();
+        req.user.id = user._id.toString();
+        req.user._id = user._id.toString();
       }
     } catch (userLookupError) {
       console.log('User lookup warning (continuing):', userLookupError.message);

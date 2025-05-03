@@ -44,17 +44,29 @@ export const createInstructor = async (req, res) => {
       return res.status(400).json({ message: 'Instructor with this email already exists' });
     }
     
+    // Get creator ID from request user with fallbacks
+    const creatorId = req.user?.userId || req.user?.id || req.user?._id;
+    
+    // If still no creator ID, return error
+    if (!creatorId) {
+      console.error('No creator ID found in request:', {
+        userObject: req.user,
+        headers: req.headers
+      });
+      return res.status(400).json({ message: 'Creator ID not found in request' });
+    }
+    
     // Create new instructor
     const instructor = new Instructor({
       name,
       email,
       university,
       department,
-      position,
+      position: position || 'Instructor', // Default if not provided
       bio,
       specializations: specializations || [],
       contactInfo: contactInfo || {},
-      createdBy: req.user.userId
+      createdBy: creatorId
     });
     
     // Add profile picture if uploaded
@@ -135,6 +147,19 @@ export const uploadInstructorData = async (req, res) => {
       fs.unlinkSync(filePath);
       return res.status(400).json({ message: 'University name is required' });
     }
+    
+    // Get creator ID from request user with fallbacks
+    const creatorId = req.user?.userId || req.user?.id || req.user?._id;
+    
+    // If still no creator ID, return error
+    if (!creatorId) {
+      console.error('No creator ID found in request:', {
+        userObject: req.user,
+        headers: req.headers
+      });
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ message: 'Creator ID not found in request' });
+    }
 
     // Array to hold instructor data
     const instructors = [];
@@ -143,46 +168,120 @@ export const uploadInstructorData = async (req, res) => {
     // Process based on file type
     const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
     
+    // Debug log
+    console.log('Processing file:', req.file.originalname, 'Extension:', fileExtension);
+    
     if (fileExtension === 'csv') {
       // Process CSV file
+      console.log('Processing CSV file...');
       await new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
           .pipe(csvParser())
           .on('data', (row) => {
-            instructors.push({
+            console.log('CSV Row:', row);
+            
+            // Map column headers based on our template
+            const instructorData = {
               name: row['Name'],
-              position: row['Designation'],
+              email: row['Email'],
+              position: row['Position'] || 'Instructor',
+              department: row['Department'] || '',
               code: row['Code'],
               roomNo: row['Room No.'],
               deskNo: row['Desk No.'],
-              email: row['E-mail ID'],
               university,
-              department: row['Department'] || '',
-              createdBy: req.user.userId
-            });
+              createdBy: creatorId,
+              contactInfo: {}
+            };
+            
+            // Add contact info if available
+            if (row['Website']) instructorData.contactInfo.website = row['Website'];
+            if (row['Phone']) instructorData.contactInfo.phone = row['Phone'];
+            
+            // Add bio if available
+            if (row['Bio']) instructorData.bio = row['Bio'];
+            
+            // Add specializations if available
+            if (row['Specializations']) {
+              instructorData.specializations = row['Specializations']
+                .split(',')
+                .map(spec => spec.trim())
+                .filter(spec => spec.length > 0);
+            }
+            
+            // Validate required fields
+            if (!instructorData.name || !instructorData.email) {
+              errors.push({
+                data: row,
+                error: 'Name and email are required fields'
+              });
+            } else {
+              instructors.push(instructorData);
+            }
           })
           .on('end', resolve)
-          .on('error', reject);
+          .on('error', (err) => {
+            console.error('CSV parsing error:', err);
+            reject(err);
+          });
       });
-    } else {
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
       // Process Excel file
+      console.log('Processing Excel file...');
       const workbook = xlsx.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const data = xlsx.utils.sheet_to_json(worksheet);
       
+      console.log('Excel data length:', data.length);
+      
       data.forEach(row => {
-        instructors.push({
+        console.log('Excel Row:', row);
+        
+        // Map column headers based on our template
+        const instructorData = {
           name: row['Name'],
-          position: row['Designation'],
+          email: row['Email'],
+          position: row['Position'] || 'Instructor',
+          department: row['Department'] || '',
           code: row['Code'],
           roomNo: row['Room No.'],
           deskNo: row['Desk No.'],
-          email: row['E-mail ID'],
           university,
-          department: row['Department'] || '',
-          createdBy: req.user.userId
-        });
+          createdBy: creatorId,
+          contactInfo: {}
+        };
+        
+        // Add contact info if available
+        if (row['Website']) instructorData.contactInfo.website = row['Website'];
+        if (row['Phone']) instructorData.contactInfo.phone = row['Phone'];
+        
+        // Add bio if available
+        if (row['Bio']) instructorData.bio = row['Bio'];
+        
+        // Add specializations if available
+        if (row['Specializations']) {
+          instructorData.specializations = row['Specializations']
+            .split(',')
+            .map(spec => spec.trim())
+            .filter(spec => spec.length > 0);
+        }
+        
+        // Validate required fields
+        if (!instructorData.name || !instructorData.email) {
+          errors.push({
+            data: row,
+            error: 'Name and email are required fields'
+          });
+        } else {
+          instructors.push(instructorData);
+        }
+      });
+    } else {
+      // Unsupported file type
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ 
+        message: 'Unsupported file type. Please upload a CSV or Excel file.' 
       });
     }
     
@@ -191,8 +290,13 @@ export const uploadInstructorData = async (req, res) => {
     
     // Validation and save
     if (instructors.length === 0) {
-      return res.status(400).json({ message: 'No valid instructor data found in the file' });
+      return res.status(400).json({ 
+        message: 'No valid instructor data found in the file',
+        errors: errors
+      });
     }
+    
+    console.log(`Found ${instructors.length} instructors to import`);
     
     // Save instructors to database
     const savedInstructors = [];
@@ -200,13 +304,16 @@ export const uploadInstructorData = async (req, res) => {
     
     for (const instructor of instructors) {
       try {
-        // Check if email and university combination already exists
+        console.log('Processing instructor:', instructor.name, instructor.email);
+        
+        // Check if email already exists
         const existingInstructor = await Instructor.findOne({ 
           email: instructor.email,
           university: instructor.university
         });
         
         if (existingInstructor) {
+          console.log('Instructor already exists:', instructor.email);
           errorInstructors.push({
             ...instructor,
             error: 'Instructor with this email and university already exists'
@@ -217,7 +324,9 @@ export const uploadInstructorData = async (req, res) => {
         const newInstructor = new Instructor(instructor);
         const savedInstructor = await newInstructor.save();
         savedInstructors.push(savedInstructor);
+        console.log('Instructor saved successfully:', savedInstructor._id);
       } catch (error) {
+        console.error('Error saving instructor:', error.message);
         errorInstructors.push({
           ...instructor,
           error: error.message
@@ -225,8 +334,11 @@ export const uploadInstructorData = async (req, res) => {
       }
     }
     
+    console.log(`Import complete: ${savedInstructors.length} successful, ${errorInstructors.length} failed`);
+    
     res.status(201).json({
       message: `Successfully added ${savedInstructors.length} instructor(s)`,
+      total: instructors.length,
       success: savedInstructors.length,
       failed: errorInstructors.length,
       savedInstructors,
@@ -252,6 +364,18 @@ export const addInstructorsManually = async (req, res) => {
       return res.status(400).json({ message: 'No instructor data provided' });
     }
     
+    // Get creator ID from request user with fallbacks
+    const creatorId = req.user?.userId || req.user?.id || req.user?._id;
+    
+    // If still no creator ID, return error
+    if (!creatorId) {
+      console.error('No creator ID found in request:', {
+        userObject: req.user,
+        headers: req.headers
+      });
+      return res.status(400).json({ message: 'Creator ID not found in request' });
+    }
+    
     // Save instructors to database
     const savedInstructors = [];
     const errorInstructors = [];
@@ -260,7 +384,7 @@ export const addInstructorsManually = async (req, res) => {
       try {
         // Add university to each instructor
         instructor.university = university;
-        instructor.createdBy = req.user.userId;
+        instructor.createdBy = creatorId;
         
         // Check if email and university combination already exists
         const existingInstructor = await Instructor.findOne({ 
@@ -298,5 +422,32 @@ export const addInstructorsManually = async (req, res) => {
   } catch (error) {
     console.error('Error adding instructors manually:', error);
     res.status(500).json({ message: 'Server error processing instructor data' });
+  }
+};
+
+// Generate and download CSV template for instructors
+export const getCSVTemplate = async (req, res) => {
+  try {
+    // Define the CSV header row
+    const header = 'Name,Email,Position,Department,Code,Room No.,Desk No.,Website,Phone,Bio,Specializations\n';
+    
+    // Define a sample data row for reference
+    const sampleRow = 'John Doe,john.doe@example.com,Professor,Computer Science,CS101,A-123,D-45,https://example.com,+1234567890,"Professor with 10 years of experience","Machine Learning,Artificial Intelligence"\n';
+    
+    // Add another example
+    const sampleRow2 = 'Jane Smith,jane.smith@university.edu,Associate Professor,Physics,PHY202,B-456,D-78,https://janesmith.edu,+9876543210,"Physics researcher with expertise in quantum mechanics","Quantum Physics,Theoretical Physics"\n';
+    
+    // Combine header and sample rows
+    const csvContent = header + sampleRow + sampleRow2;
+    
+    // Set response headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=instructor-template.csv');
+    
+    // Send the CSV content
+    res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('Error generating CSV template:', error);
+    res.status(500).json({ message: 'Server error while generating CSV template' });
   }
 }; 

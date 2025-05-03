@@ -218,10 +218,12 @@ export const getAllUsers = async (req, res) => {
     }
     
     // Find all users except current user (with admin-specific fields)
+    // For admins, we want to get ALL users from ALL universities
     const users = await User.find({ 
       _id: { $ne: req.user.userId } 
     }).select('_id name profilePicture department university role');
     
+    console.log(`Admin ${user.name} requested all users list, returning ${users.length} users`);
     res.status(200).json(users);
   } catch (error) {
     console.error('Error fetching all users:', error);
@@ -269,7 +271,7 @@ export const sendMessage = async (req, res) => {
 
     // Allow global communication - users can message anyone
     // If both users are from the same university or the sender is admin, the message is allowed
-    // Otherwise, check if this is a global communication intent
+    // Admin can message anyone from any university
     const isGlobalCommunication = req.query.global === 'true' || req.body.global === true;
     
     if (sender.university !== receiver.university && sender.role !== 'admin' && !isGlobalCommunication) {
@@ -312,6 +314,7 @@ export const getConversation = async (req, res) => {
     }
 
     // Check if users are from the same university or user is admin
+    // Admin can chat with anyone from any university
     if (user.university !== otherUser.university && user.role !== 'admin') {
       return res.status(403).json({ message: 'You can only view conversations with users from your university' });
     }

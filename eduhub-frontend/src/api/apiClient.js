@@ -160,6 +160,15 @@ const instructorService = {
     });
   },
   deleteInstructor: (id) => apiClient.delete(`/api/instructors/${id}`),
+  getCSVTemplate: () => {
+    return apiClient.get('/api/instructors/csv-template', {
+      responseType: 'blob',
+      headers: {
+        'Accept': 'text/csv'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+  }
 };
 
 // API service functions
@@ -313,6 +322,23 @@ const adminService = {
   getUserCountFallback: () => apiClient.get('/api/users/count')
 };
 
+// Department service endpoints
+const departmentService = {
+  getAllDepartments: () => apiClient.get('/api/departments'),
+  getDepartmentById: (id) => apiClient.get(`/api/departments/${id}`),
+  createDepartment: (departmentData) => apiClient.post('/api/departments', departmentData),
+  updateDepartment: (id, departmentData) => apiClient.put(`/api/departments/${id}`, departmentData),
+  deleteDepartment: (id) => apiClient.delete(`/api/departments/${id}`),
+  seedDepartments: () => apiClient.post('/api/departments/seed')
+};
+
+// University service endpoints
+const universityService = {
+  getCountries: () => apiClient.get('/api/universities/countries'),
+  getUniversitiesByCountry: (country) => apiClient.get(`/api/universities?country=${encodeURIComponent(country)}`),
+  getAllUniversities: () => apiClient.get('/api/universities')
+};
+
 export {
   apiClient,
   authService,
@@ -325,5 +351,7 @@ export {
   instructorService,
   checkServerConnection,
   adminService,
-  testCSVDownload
+  testCSVDownload,
+  departmentService,
+  universityService
 }; 

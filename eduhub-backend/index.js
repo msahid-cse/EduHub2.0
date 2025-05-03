@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import passport from './utils/passport.js';
+import { seedInitialData } from './startup/seedData.js';
 
 // Fix email password by removing spaces if it exists
 if (process.env.EMAIL_PASS) {
@@ -49,6 +50,7 @@ import feedbackRoutes from './routes/feedback.js';
 import universityRoutes from './routes/university.js';
 import communityRoutes from './routes/community.js';
 import uploadRoutes from './routes/upload.js';
+import departmentRoutes from './routes/department.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -99,7 +101,10 @@ const connectDB = async () => {
 };
 
 // Initialize database connection
-connectDB();
+connectDB().then(async () => {
+  // Seed initial data after successful connection
+  await seedInitialData();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -113,6 +118,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/universities', universityRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // Add a health check route near the beginning of your routes
 app.get('/api/health', (req, res) => {

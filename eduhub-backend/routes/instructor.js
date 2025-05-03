@@ -6,7 +6,8 @@ import {
   updateInstructor, 
   deleteInstructor,
   uploadInstructorData,
-  addInstructorsManually
+  addInstructorsManually,
+  getCSVTemplate
 } from '../controllers/instructorController.js';
 import { auth, adminOnly } from '../middleware/auth.js';
 import { uploadProfilePicture, uploadInstructorData as uploadInstructorDataMiddleware } from '../middleware/upload.js';
@@ -17,6 +18,11 @@ const router = express.Router();
 // @desc    Get all instructors or filter by university
 // @access  Public
 router.get('/', getAllInstructors);
+
+// @route   GET /api/instructors/csv-template
+// @desc    Get CSV template for instructor import
+// @access  Public
+router.get('/csv-template', getCSVTemplate);
 
 // @route   GET /api/instructors/:id
 // @desc    Get instructor by ID
