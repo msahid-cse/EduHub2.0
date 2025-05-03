@@ -90,6 +90,19 @@ const csvImportStorage = multer.diskStorage({
   }
 });
 
+// Storage configuration for promotional videos
+const promotionalVideoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const path = 'uploads/promotional-videos';
+    fs.mkdirSync(path, { recursive: true });
+    cb(null, path);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'promo-' + uniqueSuffix + '.' + file.originalname.split('.').pop());
+  }
+});
+
 // File filter for CV uploads
 const cvFilter = (req, file, cb) => {
   // Accept only PDF files
@@ -209,6 +222,15 @@ const csvImportUpload = multer({
   fileFilter: csvFilter
 });
 
+// Export promotional video upload middleware
+export const uploadPromotionalVideo = multer({
+  storage: promotionalVideoStorage,
+  limits: {
+    fileSize: 200 * 1024 * 1024 // 200MB max file size for promotional videos
+  },
+  fileFilter: videoFilter
+}).single('video');
+
 // Export middlewares
 export const uploadCV = cvUpload.single('cv');
 export const uploadProfilePicture = profileUpload.single('profilePicture');
@@ -233,6 +255,8 @@ export const upload = {
         return courseVideoUpload.single('video');
       case 'csvFile':
         return csvImportUpload.single('csvFile');
+      case 'promotionalVideo':
+        return uploadPromotionalVideo;
       default:
         return cvUpload.single(fieldName);
     }
@@ -246,5 +270,6 @@ export default {
   uploadInstructorData,
   uploadCourseVideo,
   uploadCSVFile,
+  uploadPromotionalVideo,
   upload
 }; 

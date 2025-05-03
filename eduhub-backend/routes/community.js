@@ -17,7 +17,8 @@ import {
   getUnreadCount,
   uploadAttachment,
   getGlobalCommunityMembers,
-  checkAdminStatus
+  checkAdminStatus,
+  getPublicGlobalPosts
 } from '../controllers/communityController.js';
 
 const router = express.Router();
@@ -42,6 +43,12 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
 });
+
+// Public route for landing page (no auth required)
+// @route   GET /api/community/public/posts
+// @desc    Get a few global posts for public view (landing page)
+// @access  Public
+router.get('/public/posts', getPublicGlobalPosts);
 
 // Global community routes
 // @route   GET /api/community/global/posts

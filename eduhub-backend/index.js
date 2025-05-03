@@ -51,6 +51,7 @@ import universityRoutes from './routes/university.js';
 import communityRoutes from './routes/community.js';
 import uploadRoutes from './routes/upload.js';
 import departmentRoutes from './routes/department.js';
+import promotionalVideoRoutes from './routes/promotionalVideo.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -119,6 +120,7 @@ app.use('/api/universities', universityRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/promotional-video', promotionalVideoRoutes);
 
 // Add a health check route near the beginning of your routes
 app.get('/api/health', (req, res) => {

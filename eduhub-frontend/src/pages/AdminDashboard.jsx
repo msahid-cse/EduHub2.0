@@ -30,7 +30,9 @@ import {
   Download,
   Upload,
   GraduationCap,
-  Calendar
+  Calendar,
+  PlayCircle,
+  Building2
 } from 'lucide-react';
 import { apiClient, communityAPI, instructorService, adminService } from '../api/apiClient';
 
@@ -872,7 +874,7 @@ const AdminDashboard = ({ initialSection }) => {
           </div>
           
           {/* Second Row of Quick Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <button 
               onClick={() => navigate('/manage-instructors')}
               className="bg-gradient-to-br from-indigo-600/20 to-indigo-800/20 p-3 rounded-lg border border-indigo-700/50 hover:border-indigo-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
@@ -903,6 +905,25 @@ const AdminDashboard = ({ initialSection }) => {
             >
               <MessageCircle className="w-5 h-5 text-red-400 mr-3 flex-shrink-0" />
               <span className="text-sm font-medium text-white">Manage Feedback</span>
+            </button>
+          </div>
+          
+          {/* Third Row of Quick Actions - NEW */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button 
+              onClick={() => navigate('/admin/promotional-video')}
+              className="bg-gradient-to-br from-red-600/20 to-red-800/20 p-3 rounded-lg border border-red-700/50 hover:border-red-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
+            >
+              <PlayCircle className="w-5 h-5 text-red-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Manage Promotional Video</span>
+            </button>
+            
+            <button 
+              onClick={() => navigate('/admin/partners')}
+              className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 p-3 rounded-lg border border-purple-700/50 hover:border-purple-500/50 transition-colors shadow-lg flex items-center justify-center h-12"
+            >
+              <Building2 className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
+              <span className="text-sm font-medium text-white">Manage Partners & Universities</span>
             </button>
           </div>
         </div>

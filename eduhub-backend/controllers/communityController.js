@@ -15,6 +15,21 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Get public global posts (no auth required - for landing page)
+export const getPublicGlobalPosts = async (req, res) => {
+  try {
+    // Get only a limited number of global posts (most recent) for public display
+    const posts = await Post.find({ isGlobal: true })
+      .sort({ createdAt: -1 })
+      .limit(3); // Limit to 3 posts for landing page
+    
+    res.status(200).json(posts);
+  } catch (error) {
+    console.error('Error fetching public global posts:', error);
+    res.status(500).json({ message: 'Server error while fetching public global posts' });
+  }
+};
+
 // Get global posts
 export const getGlobalPosts = async (req, res) => {
   try {

@@ -287,6 +287,14 @@ const UserDashboard = () => {
     // ... existing code ...
   }, [navigate]);
 
+  // Detect if we should navigate to the community tab from landing page
+  useEffect(() => {
+    // Handle navigation from Community section on landing page
+    if (location.state?.activeTab === 'community') {
+      setActiveTab('community');
+    }
+  }, [location.state]);
+
   // Function to fetch enrolled courses
   const fetchEnrolledCourses = async (token) => {
     setIsLoading(true);

@@ -86,8 +86,17 @@ function LoginPage() {
       if (response.data.user.role === 'admin') {
         navigate('/admindashboard');
       } else {
-        const from = location.state?.from?.pathname || '/userdashboard';
-        navigate(from);
+        // Check if there's a specific return path with params stored in location state
+        if (location.state?.returnTo) {
+          // Handle navigation with parameters
+          navigate(location.state.returnTo, { 
+            state: location.state.returnToParams 
+          });
+        } else {
+          // Default redirect
+          const from = location.state?.from?.pathname || '/userdashboard';
+          navigate(from);
+        }
       }
     } catch (error) {
       console.error('Login error:', error);

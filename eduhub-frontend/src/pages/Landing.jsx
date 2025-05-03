@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { apiClient } from '../api/apiClient';
+import { apiClient, communityAPI, promotionalVideoService } from '../api/apiClient';
 import {
   Rocket,
   Users,
@@ -32,10 +32,12 @@ import {
   Brain,
   Video,
   FileText,
-  Search
+  Search,
+  Loader
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import EventSection from '../components/EventSection';
+import { Link } from 'react-router-dom';
 
 const Landing = () => {
   const [videoPlaying, setVideoPlaying] = useState(false);
@@ -86,8 +88,8 @@ const Footer = () => {
             <h4 className="text-white font-semibold mb-3">Connect</h4>
             <ul className="space-y-2">
               <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">Contact Us</a></li>
-              <li><a href="/developers" className="text-gray-400 hover:text-teal-400 text-sm">About</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">FAQ</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-teal-400 text-sm">About</a></li>
+              <li><Link to="/developers" className="text-gray-400 hover:text-teal-400 text-sm">Developers</Link></li>
             </ul>
           </div>
         </div>
@@ -1131,6 +1133,66 @@ const JobSection = ({ jobs, isLoading }) => {
 };
 
 const CommunitySection = () => {
+  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [globalPosts, setGlobalPosts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Check if user is logged in
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+    
+    // Fetch global posts for the community section
+    const fetchGlobalPosts = async () => {
+      setIsLoading(true);
+      try {
+        // If user is logged in, use the API with auth
+        if (loggedIn) {
+          const response = await communityAPI.getGlobalPosts();
+          setGlobalPosts(response.data.slice(0, 3)); // Get only 3 posts
+        } else {
+          // If not logged in, make a public request (needs to be implemented on backend)
+          const response = await axios.get('http://localhost:5000/api/community/public/posts');
+          setGlobalPosts(response.data.slice(0, 3)); // Get only 3 posts
+        }
+        setError(null);
+      } catch (error) {
+        console.error('Error fetching community posts:', error);
+        setError('Failed to load community posts');
+        // Set some placeholder data if fetch fails
+        setGlobalPosts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchGlobalPosts();
+  }, []);
+  
+  // Format date for posts
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+  
+  // Handle Join Community button click
+  const handleJoinCommunity = () => {
+    if (isLoggedIn) {
+      // If logged in, navigate to community section in user dashboard
+      navigate('/userdashboard', { state: { activeTab: 'community' } });
+    } else {
+      // If not logged in, go to login page with return destination
+      navigate('/login', { 
+        state: { 
+          returnTo: '/userdashboard',
+          returnToParams: { activeTab: 'community' }
+        } 
+      });
+    }
+  };
+  
   return (
     <section className="mb-20">
       <h2 className="font-['Inter'] text-3xl sm:text-4xl font-bold text-white mb-6 text-center relative">
@@ -1139,103 +1201,134 @@ const CommunitySection = () => {
         <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full"></span>
       </h2>
       
-      <div className="bg-gradient-to-br from-indigo-900/30 to-blue-900/30 border border-indigo-800/50 rounded-xl p-8 md:p-10 shadow-xl backdrop-blur-sm max-w-5xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          <div>
-            <h3 className="text-2xl font-bold text-white mb-4">Connect with Peers & Professionals</h3>
-            <p className="text-gray-300 mb-6">
+      <div className="bg-gradient-to-br from-indigo-900/30 to-blue-900/30 border border-indigo-800/50 rounded-xl p-6 md:p-8 shadow-xl backdrop-blur-sm max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 gap-6">
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-white mb-3">Connect with Peers & Professionals</h3>
+            <p className="text-gray-300 mb-6 max-w-3xl mx-auto">
               Join our thriving community of students, educators, and professionals. Share ideas, get support, and build meaningful connections that will help you grow academically and professionally.
             </p>
             
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <div className="bg-indigo-500/20 p-2 rounded-lg mr-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 max-w-4xl mx-auto">
+              <div className="flex items-center bg-indigo-900/30 p-3 rounded-lg border border-indigo-800/50">
+                <div className="bg-indigo-500/20 p-2 rounded-lg mr-3 flex-shrink-0">
                   <MessageCircle className="w-5 h-5 text-indigo-400" />
                 </div>
-                <div>
+                <div className="text-left">
                   <h4 className="text-lg font-semibold text-white">Discussion Forums</h4>
-                  <p className="text-gray-400 text-sm">Engage in topic-specific discussions with peers and experts.</p>
+                  <p className="text-gray-400 text-sm">Engage in topic-specific discussions.</p>
                 </div>
               </div>
               
-              <div className="flex items-start">
-                <div className="bg-indigo-500/20 p-2 rounded-lg mr-4">
+              <div className="flex items-center bg-indigo-900/30 p-3 rounded-lg border border-indigo-800/50">
+                <div className="bg-indigo-500/20 p-2 rounded-lg mr-3 flex-shrink-0">
                   <Users className="w-5 h-5 text-indigo-400" />
                 </div>
-                <div>
+                <div className="text-left">
                   <h4 className="text-lg font-semibold text-white">Study Groups</h4>
-                  <p className="text-gray-400 text-sm">Join or create study groups for collaborative learning.</p>
+                  <p className="text-gray-400 text-sm">Join or create study groups.</p>
                 </div>
-                </div>
-                
-              <div className="flex items-start">
-                <div className="bg-indigo-500/20 p-2 rounded-lg mr-4">
+              </div>
+              
+              <div className="flex items-center bg-indigo-900/30 p-3 rounded-lg border border-indigo-800/50">
+                <div className="bg-indigo-500/20 p-2 rounded-lg mr-3 flex-shrink-0">
                   <HeartHandshake className="w-5 h-5 text-indigo-400" />
                 </div>
-                <div>
+                <div className="text-left">
                   <h4 className="text-lg font-semibold text-white">Mentorship</h4>
-                  <p className="text-gray-400 text-sm">Connect with mentors or become one to help others.</p>
+                  <p className="text-gray-400 text-sm">Connect with mentors or become one.</p>
                 </div>
               </div>
             </div>
             
-            <button className="mt-8 font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-transparent hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
+            <button 
+              onClick={handleJoinCommunity}
+              className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-transparent hover:from-indigo-600 hover:to-blue-600 hover:scale-105 mx-auto"
+            >
               Join Community <Users className="w-5 h-5 ml-2" />
             </button>
           </div>
-          
-          <div className="hidden md:block">
-            <img 
-              src="https://cdn-icons-png.flaticon.com/512/3588/3588455.png" 
-              alt="Community" 
-              className="w-full max-w-md mx-auto"
-            />
-          </div>
-                      </div>
+        </div>
                       
-        <div className="mt-10 pt-10 border-t border-indigo-800/30">
+        <div className="mt-8 pt-8 border-t border-indigo-800/30">
           <h3 className="text-xl font-bold text-white mb-4 text-center">What Our Community Says</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
-              <p className="text-gray-300 italic text-sm">
-                "The EduHub community helped me connect with mentors who guided me through my job search. I'm now working at my dream company!"
-              </p>
-              <div className="flex items-center mt-4">
-                <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="User" className="w-10 h-10 rounded-full mr-3" />
-                <div>
-                  <h5 className="text-white font-semibold">Nasrin Ahmed</h5>
-                  <p className="text-gray-400 text-xs">Computer Science Graduate</p>
-                </div>
-              </div>
-                      </div>
-                      
-            <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
-              <p className="text-gray-300 italic text-sm">
-                "The study groups here are incredibly supportive. We've been meeting virtually for over a year now, and it's been a game-changer for my academics."
-              </p>
-              <div className="flex items-center mt-4">
-                <img src="https://randomuser.me/api/portraits/men/47.jpg" alt="User" className="w-10 h-10 rounded-full mr-3" />
-                <div>
-                  <h5 className="text-white font-semibold">Rafiq Islam</h5>
-                  <p className="text-gray-400 text-xs">Engineering Student</p>
-                </div>
-              </div>
-                      </div>
-                      
-            <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
-              <p className="text-gray-300 italic text-sm">
-                "I've learned so much from the discussion forums. The community is knowledgeable and always willing to help with tough problems."
-              </p>
-              <div className="flex items-center mt-4">
-                <img src="https://randomuser.me/api/portraits/women/68.jpg" alt="User" className="w-10 h-10 rounded-full mr-3" />
-                <div>
-                  <h5 className="text-white font-semibold">Amina Khan</h5>
-                  <p className="text-gray-400 text-xs">Law Student</p>
-                        </div>
-                    </div>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader className="w-8 h-8 text-indigo-400 animate-spin" />
+              <span className="ml-2 text-gray-400">Loading community posts...</span>
             </div>
-          </div>
+          ) : error ? (
+            <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 text-center text-red-400">
+              {error}
+            </div>
+          ) : globalPosts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {globalPosts.map((post) => (
+                <div key={post._id} className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
+                  <p className="text-gray-300 italic text-sm line-clamp-4">
+                    "{post.content}"
+                  </p>
+                  <div className="flex items-center mt-4">
+                    <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-white font-bold mr-3">
+                      {post.userName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h5 className="text-white font-semibold">{post.userName}</h5>
+                      <p className="text-gray-400 text-xs">{post.university || 'EduHub Member'} • {formatDate(post.createdAt)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
+                <p className="text-gray-300 italic text-sm">
+                  "The EduHub community helped me connect with mentors who guided me through my job search. I'm now working at my dream company!"
+                </p>
+                <div className="flex items-center mt-4">
+                  <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-white font-bold mr-3">
+                    N
+                  </div>
+                  <div>
+                    <h5 className="text-white font-semibold">Nasrin Ahmed</h5>
+                    <p className="text-gray-400 text-xs">Computer Science Graduate</p>
+                  </div>
+                </div>
+              </div>
+                      
+              <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
+                <p className="text-gray-300 italic text-sm">
+                  "The study groups here are incredibly supportive. We've been meeting virtually for over a year now, and it's been a game-changer for my academics."
+                </p>
+                <div className="flex items-center mt-4">
+                  <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-white font-bold mr-3">
+                    R
+                  </div>
+                  <div>
+                    <h5 className="text-white font-semibold">Rafiq Islam</h5>
+                    <p className="text-gray-400 text-xs">Engineering Student</p>
+                  </div>
+                </div>
+              </div>
+                      
+              <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 p-4 rounded-lg">
+                <p className="text-gray-300 italic text-sm">
+                  "I've learned so much from the discussion forums. The community is knowledgeable and always willing to help with tough problems."
+                </p>
+                <div className="flex items-center mt-4">
+                  <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-white font-bold mr-3">
+                    A
+                  </div>
+                  <div>
+                    <h5 className="text-white font-semibold">Amina Khan</h5>
+                    <p className="text-gray-400 text-xs">Law Student</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -1243,98 +1336,197 @@ const CommunitySection = () => {
 };
 
 const VideoSection = ({ videoPlaying, setVideoPlaying }) => {
+  const [promotionalVideo, setPromotionalVideo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
+
+  useEffect(() => {
+    // Fetch promotional video from backend
+    const fetchPromotionalVideo = async () => {
+      try {
+        setLoading(true);
+        const response = await promotionalVideoService.getActiveVideo();
+        if (response.data && response.data.video) {
+          setPromotionalVideo(response.data.video);
+          
+          // Automatically play video if user has scrolled to this section
+          const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && !videoPlaying) {
+              // Check if user has interacted with the page
+              if (document.documentElement.hasAttribute('data-user-interacted')) {
+                setVideoPlaying(true);
+                setAutoPlayEnabled(true);
+              }
+            }
+          }, { threshold: 0.5 });
+          
+          // Start observing the video section
+          const videoSection = document.getElementById('promo-video-section');
+          if (videoSection) {
+            observer.observe(videoSection);
+          }
+          
+          return () => {
+            if (videoSection) observer.unobserve(videoSection);
+          };
+        } else {
+          setError('No promotional video available');
+        }
+      } catch (err) {
+        console.error('Error fetching promotional video:', err);
+        setError('Failed to load promotional video');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPromotionalVideo();
+    
+    // Add event listener to track user interaction with the page
+    const handleUserInteraction = () => {
+      document.documentElement.setAttribute('data-user-interacted', 'true');
+    };
+    
+    window.addEventListener('click', handleUserInteraction);
+    window.addEventListener('keydown', handleUserInteraction);
+    window.addEventListener('scroll', handleUserInteraction);
+    
+    return () => {
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('scroll', handleUserInteraction);
+    };
+  }, [videoPlaying, setVideoPlaying]);
+
+  // Function to get YouTube video ID from URL
+  const getYoutubeVideoId = (url) => {
+    if (!url) return null;
+    
+    // Regular expressions to extract YouTube video ID from different URL formats
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
   return (
-    <section className="mb-20 relative">
+    <section className="mb-20 relative" id="promo-video-section">
       <h2 className="font-['Inter'] text-3xl sm:text-4xl font-bold text-white mb-6 text-center relative">
         <PlayCircle className="w-6 h-6 inline-block mr-2 text-red-400" />
-        Featured Videos
+        Promotional Video
         <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1/3 h-1 bg-gradient-to-r from-red-500 to-pink-500 rounded-full"></span>
       </h2>
       
-      <p className="text-center text-gray-300 mb-12 max-w-3xl mx-auto">
-        Watch our featured videos on educational topics, career guidance, and skill development from industry experts.
-      </p>
+      {promotionalVideo && (
+        <>
+          <p className="text-center mb-4 max-w-3xl mx-auto">
+            <span className="text-xl text-white font-semibold px-6 py-2 bg-gradient-to-r from-red-500/10 to-pink-500/10 rounded-full border border-red-500/20">
+              {promotionalVideo.title}
+            </span>
+          </p>
+          
+          <div className="text-center mb-12 max-w-3xl mx-auto">
+            <p className="text-gray-400 italic px-6 py-4 bg-gray-800/30 rounded-lg border-l-4 border-red-500 leading-relaxed">
+              "{promotionalVideo.description}"
+            </p>
+          </div>
+        </>
+      )}
       
-      <div className="max-w-4xl mx-auto relative overflow-hidden bg-gray-900/60 border border-gray-800 rounded-xl shadow-2xl">
+      {!promotionalVideo && (
+        <p className="text-center text-gray-300 mb-12 max-w-3xl mx-auto">
+          Watch our promotional video to learn more about EduHub and the opportunities we offer.
+        </p>
+      )}
+      
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500"></div>
+        </div>
+      ) : error ? (
+        <div className="max-w-4xl mx-auto relative bg-gray-900/60 border border-gray-800 rounded-xl shadow-2xl p-8 text-center">
+          <p className="text-gray-400">{error}</p>
+        </div>
+      ) : promotionalVideo ? (
+        <div className="max-w-4xl mx-auto relative overflow-hidden bg-gray-900/60 border border-gray-800 rounded-xl shadow-2xl">
           {videoPlaying ? (
-          <>
-            <div className="relative pt-[56.25%]">
-            <iframe
-                className="absolute inset-0 w-full h-full"
-              src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
-              title="Featured Video"
-              frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-              allowFullScreen
-              ></iframe>
-            </div>
-                      <button 
-              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors"
-              onClick={() => setVideoPlaying(false)}
-                      >
-              <XCircle className="w-6 h-6 text-white" />
-                      </button>
-          </>
-        ) : (
-          <div className="relative group cursor-pointer" onClick={() => setVideoPlaying(true)}>
-            <img 
-              src="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg" 
-              alt="Video thumbnail" 
-              className="w-full h-auto rounded-xl"
-            />
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-              <div className="bg-red-500 p-5 rounded-full">
-                <PlayCircle className="w-10 h-10 text-white" />
+            <>
+              <div className="relative pt-[56.25%]">
+                {getYoutubeVideoId(promotionalVideo.videoUrl) ? (
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${getYoutubeVideoId(promotionalVideo.videoUrl)}?autoplay=1&mute=1`}
+                    title="Promotional Video"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen
+                  ></iframe>
+                ) : promotionalVideo.videoType === 'drive' ? (
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`${promotionalVideo.videoUrl}?autoplay=1`}
+                    title="Promotional Video"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen
+                  ></iframe>
+                ) : (
+                  <video
+                    className="absolute inset-0 w-full h-full"
+                    src={promotionalVideo.videoUrl}
+                    controls
+                    autoPlay
+                    muted
+                    onCanPlay={(e) => {
+                      e.target.muted = false;
+                      e.target.play();
+                    }}
+                  />
+                )}
+              </div>
+              <button 
+                className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors"
+                onClick={() => setVideoPlaying(false)}
+              >
+                <XCircle className="w-6 h-6 text-white" />
+              </button>
+            </>
+          ) : (
+            <div 
+              className="relative cursor-pointer" 
+              onClick={() => {
+                setVideoPlaying(true);
+                // Auto-start the video when clicked
+                setTimeout(() => {
+                  const videoElement = document.querySelector('video');
+                  if (videoElement) videoElement.play();
+                }, 100);
+              }}
+            >
+              <img 
+                src={promotionalVideo.thumbnailUrl || `https://img.youtube.com/vi/${getYoutubeVideoId(promotionalVideo.videoUrl) || 'dQw4w9WgXcQ'}/maxresdefault.jpg`} 
+                alt="Video thumbnail" 
+                className="w-full h-auto rounded-xl"
+              />
+              {/* Video info overlay */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 rounded-b-xl">
+                <h3 className="text-xl font-bold text-white mb-2">{promotionalVideo.title}</h3>
+                <p className="text-gray-300">{promotionalVideo.description}</p>
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-red-600/80 rounded-full p-4 shadow-lg transform hover:scale-110 transition-transform">
+                  <PlayCircle className="w-12 h-12 text-white" />
+                </div>
               </div>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 rounded-b-xl">
-              <h3 className="text-xl font-bold text-white mb-2">How to Excel in Your University Education</h3>
-              <p className="text-gray-300">Learn effective study techniques and resource management from academic experts</p>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-8">
-        {[
-          {
-            title: "Academic Success Tips",
-            thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
-          },
-          {
-            title: "Career Planning Guide",
-            thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
-          },
-          {
-            title: "Preparing for Job Interviews",
-            thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
-          },
-          {
-            title: "Building Professional Skills",
-            thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
-          }
-        ].map((video, index) => (
-          <div key={index} className="relative overflow-hidden rounded-lg group cursor-pointer">
-            <img 
-              src={video.thumbnail} 
-              alt={video.title} 
-              className="w-full h-auto rounded-lg transition-transform duration-300 group-hover:scale-110"
-            />
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <PlayCircle className="w-8 h-8 text-white" />
-                    </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-              <p className="text-white text-xs md:text-sm font-medium line-clamp-2">{video.title}</p>
-                  </div>
+          )}
         </div>
-        ))}
-      </div>
-      
-      <div className="mt-8 text-center">
-        <button className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:scale-105 mx-auto">
-          View All Videos <PlayCircle className="w-5 h-5 ml-2" />
-        </button>
-                      </div>
+      ) : (
+        <div className="max-w-4xl mx-auto relative bg-gray-900/60 border border-gray-800 rounded-xl shadow-2xl p-8 text-center">
+          <p className="text-gray-400">No promotional video available at the moment.</p>
+        </div>
+      )}
     </section>
   );
 };
@@ -1368,6 +1560,61 @@ const StatsSection = () => {
 };
 
 const SupportSection = () => {
+  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  useEffect(() => {
+    // Check authentication status
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+  }, []);
+  
+  const handleAcademicSupportClick = () => {
+    if (isLoggedIn) {
+      navigate('/userdashboard', { state: { activeTab: 'external' } });
+    } else {
+      navigate('/login', { 
+        state: { 
+          returnTo: '/userdashboard',
+          returnToParams: { activeTab: 'external' }
+        } 
+      });
+    }
+  };
+  
+  const handleCareerGuidanceClick = () => {
+    if (isLoggedIn) {
+      navigate('/userdashboard', { state: { activeTab: 'cvbuilder' } });
+    } else {
+      navigate('/login', { 
+        state: { 
+          returnTo: '/userdashboard',
+          returnToParams: { activeTab: 'cvbuilder' }
+        } 
+      });
+    }
+  };
+  
+  const handleTechnicalSupportClick = () => {
+    if (isLoggedIn) {
+      // Scroll to feedback section if on the landing page already
+      const feedbackSection = document.getElementById('feedback');
+      if (feedbackSection) {
+        feedbackSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        // Navigate to landing page feedback section
+        navigate('/#feedback');
+      }
+    } else {
+      navigate('/login', { 
+        state: { 
+          returnTo: '/',
+          returnToParams: { scrollTo: 'feedback' }
+        } 
+      });
+    }
+  };
+  
   return (
     <section className="mb-20">
       <h2 className="font-['Inter'] text-3xl sm:text-4xl font-bold text-white mb-6 text-center relative">
@@ -1406,10 +1653,13 @@ const SupportSection = () => {
               <span className="text-sm">Study resources and materials</span>
             </li>
             </ul>
-          <button className="text-orange-400 hover:text-orange-300 transition-colors text-sm flex items-center">
+          <button 
+            onClick={handleAcademicSupportClick}
+            className="text-orange-400 hover:text-orange-300 transition-colors text-sm flex items-center"
+          >
             Learn More <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
-            </div>
+          </button>
+        </div>
         
         {/* Career Guidance */}
         <div className="bg-gradient-to-br from-gray-900/50 to-gray-900/80 border border-gray-800 rounded-xl p-6 shadow-xl backdrop-blur-md transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]">
@@ -1440,7 +1690,10 @@ const SupportSection = () => {
               <span className="text-sm">Mock interview practice</span>
             </li>
           </ul>
-          <button className="text-amber-400 hover:text-amber-300 transition-colors text-sm flex items-center">
+          <button 
+            onClick={handleCareerGuidanceClick}
+            className="text-amber-400 hover:text-amber-300 transition-colors text-sm flex items-center"
+          >
             Explore Services <ArrowRight className="w-4 h-4 ml-1" />
           </button>
         </div>
@@ -1474,23 +1727,11 @@ const SupportSection = () => {
               <span className="text-sm">Account and access management</span>
             </li>
             </ul>
-          <button className="text-teal-400 hover:text-teal-300 transition-colors text-sm flex items-center">
+          <button 
+            onClick={handleTechnicalSupportClick}
+            className="text-teal-400 hover:text-teal-300 transition-colors text-sm flex items-center"
+          >
             Get Support <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
-            </div>
-          </div>
-      
-      <div className="mt-10 text-center max-w-3xl mx-auto">
-        <h3 className="text-xl font-bold text-white mb-4">Need Personalized Help?</h3>
-        <p className="text-gray-300 mb-6">
-          Our team is ready to assist you with any questions or challenges you might face during your educational journey.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-          <button className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white border-transparent hover:from-orange-600 hover:to-amber-600 hover:scale-105">
-            Contact Support <LifeBuoy className="w-5 h-5 ml-2" />
-          </button>
-          <button className="font-['Source_Sans_Pro'] font-semibold px-6 py-3 rounded-full transition-all duration-300 flex items-center gap-2 shadow-lg border-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:scale-105">
-            Browse FAQ <BookOpen className="w-5 h-5 ml-2" />
           </button>
         </div>
       </div>
@@ -1673,31 +1914,131 @@ const FeedbackSection = () => {
 };
 
 const CallToActionSection = ({ navigate }) => {
+  const [stats, setStats] = useState({
+    courses: 0,
+    instructors: 0,
+    students: 0,
+    universities: 0,
+    jobs: 0
+  });
+  const [trustedUniversities, setTrustedUniversities] = useState([]);
+  const [industryPartners, setIndustryPartners] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch platform statistics
+        const statsResponse = await axios.get('http://localhost:5000/api/platform/stats');
+        if (statsResponse.data) {
+          setStats(statsResponse.data);
+        }
+
+        // Fetch trusted universities
+        const universitiesResponse = await axios.get('http://localhost:5000/api/partners/universities');
+        if (universitiesResponse.data) {
+          setTrustedUniversities(universitiesResponse.data);
+        }
+
+        // Fetch industry partners
+        const partnersResponse = await axios.get('http://localhost:5000/api/partners/industry');
+        if (partnersResponse.data) {
+          setIndustryPartners(partnersResponse.data);
+        }
+
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching platform data:', err);
+        setError('Failed to load some platform data');
+        
+        // Try to fetch individual stats if the main endpoint fails
+        try {
+          // Fallback for courses count
+          const coursesResponse = await axios.get('http://localhost:5000/api/courses/count');
+          if (coursesResponse.data && coursesResponse.data.count) {
+            setStats(prev => ({ ...prev, courses: coursesResponse.data.count }));
+          }
+          
+          // Fallback for instructors count
+          const instructorsResponse = await axios.get('http://localhost:5000/api/instructors/count');
+          if (instructorsResponse.data && instructorsResponse.data.count) {
+            setStats(prev => ({ ...prev, instructors: instructorsResponse.data.count }));
+          }
+          
+          // Fallback for users/students count
+          const usersResponse = await axios.get('http://localhost:5000/api/users/count');
+          if (usersResponse.data && usersResponse.data.count) {
+            setStats(prev => ({ ...prev, students: usersResponse.data.count }));
+          }
+          
+          // Fallback for universities count
+          const universitiesCountResponse = await axios.get('http://localhost:5000/api/universities/count');
+          if (universitiesCountResponse.data && universitiesCountResponse.data.count) {
+            setStats(prev => ({ ...prev, universities: universitiesCountResponse.data.count }));
+          }
+          
+          // Fallback for jobs count
+          const jobsResponse = await axios.get('http://localhost:5000/api/jobs/count');
+          if (jobsResponse.data && jobsResponse.data.count) {
+            setStats(prev => ({ ...prev, jobs: jobsResponse.data.count }));
+          }
+        } catch (fallbackErr) {
+          console.error('Fallback stats fetching failed:', fallbackErr);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  // Function to handle external link navigation with proper validation
+  const navigateToExternalSite = (url) => {
+    // Basic URL validation
+    if (!url) return;
+    
+    // Ensure the URL has a protocol
+    const hasProtocol = url.startsWith('http://') || url.startsWith('https://');
+    const validUrl = hasProtocol ? url : `https://${url}`;
+    
+    // Open in a new tab with security attributes
+    window.open(validUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <section className="mb-16">
       <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-800/50 rounded-xl p-8 md:p-12 shadow-2xl backdrop-blur-lg">
         <div className="text-center max-w-3xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-8">
             Join Thousands of Students on EduHub Today
-      </h2>
+          </h2>
       
-          <div className="flex flex-wrap justify-center gap-3 mb-10">
-            <div className="bg-blue-500/20 text-blue-300 px-4 py-2 rounded-full text-sm font-medium">
-              3,500+ Courses
+          {isLoading ? (
+            <div className="flex justify-center py-4 mb-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             </div>
-            <div className="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-full text-sm font-medium">
-              1,200+ Instructors
+          ) : (
+            <div className="flex flex-wrap justify-center gap-3 mb-10">
+              <div className="bg-blue-500/20 text-blue-300 px-4 py-2 rounded-full text-sm font-medium">
+                {stats.courses.toLocaleString()}+ Courses
+              </div>
+              <div className="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-full text-sm font-medium">
+                {stats.instructors.toLocaleString()}+ Instructors
+              </div>
+              <div className="bg-teal-500/20 text-teal-300 px-4 py-2 rounded-full text-sm font-medium">
+                {stats.students.toLocaleString()}+ Students
+              </div>
+              <div className="bg-amber-500/20 text-amber-300 px-4 py-2 rounded-full text-sm font-medium">
+                {stats.universities.toLocaleString()}+ Universities
+              </div>
+              <div className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full text-sm font-medium">
+                {stats.jobs.toLocaleString()}+ Job Opportunities
+              </div>
             </div>
-            <div className="bg-teal-500/20 text-teal-300 px-4 py-2 rounded-full text-sm font-medium">
-              50,000+ Students
-            </div>
-            <div className="bg-amber-500/20 text-amber-300 px-4 py-2 rounded-full text-sm font-medium">
-              300+ Universities
-            </div>
-            <div className="bg-green-500/20 text-green-300 px-4 py-2 rounded-full text-sm font-medium">
-              2,000+ Job Opportunities
-            </div>
-          </div>
+          )}
           
           <p className="text-gray-300 text-lg mb-10 max-w-2xl mx-auto">
             Unlock your potential with our comprehensive educational platform. From academic resources to career opportunities, 
@@ -1717,51 +2058,95 @@ const CallToActionSection = ({ navigate }) => {
             >
               Login to Your Account <Rocket className="w-5 h-5 ml-2" />
             </button>
-        </div>
+          </div>
           
           <div className="flex flex-wrap justify-center gap-8 mt-12">
+            {/* Trusted Universities Section */}
             <div className="text-center">
               <p className="text-gray-400 text-sm mb-1">Trusted by universities</p>
               <div className="flex gap-4">
-                <img 
-                  src="https://cdn-icons-png.flaticon.com/512/8074/8074804.png" 
-                  alt="University Logo" 
-                  className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                />
-                <img 
-                  src="https://cdn-icons-png.flaticon.com/512/8074/8074758.png" 
-                  alt="University Logo" 
-                  className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                />
-                <img 
-                  src="https://cdn-icons-png.flaticon.com/512/8074/8074760.png" 
-                  alt="University Logo" 
-                  className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                />
-        </div>
+                {trustedUniversities.length > 0 ? (
+                  trustedUniversities.slice(0, 3).map((university) => (
+                    <div key={university._id} className="flex flex-col items-center">
+                      <img 
+                        src={university.logoUrl} 
+                        alt={university.name} 
+                        className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                        onClick={() => navigateToExternalSite(university.websiteUrl)}
+                        title={university.name}
+                      />
+                      <span className="text-xs text-gray-500 mt-1">{university.name}</span>
+                    </div>
+                  ))
+                ) : (
+                  // Fallback if no universities are fetched
+                  <>
+                    <img 
+                      src="https://cdn-icons-png.flaticon.com/512/8074/8074804.png" 
+                      alt="University Logo" 
+                      className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                    />
+                    <img 
+                      src="https://cdn-icons-png.flaticon.com/512/8074/8074758.png" 
+                      alt="University Logo" 
+                      className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                    />
+                    <img 
+                      src="https://cdn-icons-png.flaticon.com/512/8074/8074760.png" 
+                      alt="University Logo" 
+                      className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                    />
+                  </>
+                )}
+              </div>
             </div>
             
+            {/* Industry Partners Section */}
             <div className="text-center">
               <p className="text-gray-400 text-sm mb-1">Industry partners</p>
               <div className="flex gap-4">
-                <img 
-                  src="https://cdn-icons-png.flaticon.com/512/5969/5969205.png" 
-                  alt="Company Logo" 
-                  className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                />
-                <img 
-                  src="https://cdn-icons-png.flaticon.com/512/882/882730.png" 
-                  alt="Company Logo" 
-                  className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                />
-                <img 
-                  src="https://cdn-icons-png.flaticon.com/512/5969/5969126.png" 
-                  alt="Company Logo" 
-                  className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
-                />
+                {industryPartners.length > 0 ? (
+                  industryPartners.slice(0, 3).map((partner) => (
+                    <div key={partner._id} className="flex flex-col items-center">
+                      <img 
+                        src={partner.logoUrl} 
+                        alt={partner.name} 
+                        className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                        onClick={() => navigateToExternalSite(partner.websiteUrl)}
+                        title={partner.name}
+                      />
+                      <span className="text-xs text-gray-500 mt-1">{partner.name}</span>
+                    </div>
+                  ))
+                ) : (
+                  // Fallback if no partners are fetched
+                  <>
+                    <img 
+                      src="https://cdn-icons-png.flaticon.com/512/5969/5969205.png" 
+                      alt="Company Logo" 
+                      className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                    />
+                    <img 
+                      src="https://cdn-icons-png.flaticon.com/512/882/882730.png" 
+                      alt="Company Logo" 
+                      className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                    />
+                    <img 
+                      src="https://cdn-icons-png.flaticon.com/512/5969/5969126.png" 
+                      alt="Company Logo" 
+                      className="h-10 w-auto grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer"
+                    />
+                  </>
+                )}
               </div>
             </div>
           </div>
+          
+          {error && (
+            <p className="text-amber-400 text-xs mt-4">
+              Note: Some platform statistics may not be up to date.
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -339,6 +339,31 @@ const universityService = {
   getAllUniversities: () => apiClient.get('/api/universities')
 };
 
+// Promotional Video service
+const promotionalVideoService = {
+  // Get active promotional video
+  getActiveVideo: () => apiClient.get('/api/promotional-video'),
+  
+  // Get all promotional videos (admin)
+  getAllVideos: () => apiClient.get('/api/promotional-video/all'),
+  
+  // Create a new promotional video
+  createVideo: (data) => apiClient.post('/api/promotional-video', data),
+  
+  // Update a promotional video
+  updateVideo: (id, data) => apiClient.put(`/api/promotional-video/${id}`, data),
+  
+  // Delete a promotional video
+  deleteVideo: (id) => apiClient.delete(`/api/promotional-video/${id}`),
+  
+  // Upload a promotional video file
+  uploadVideo: (formData) => apiClient.post('/api/promotional-video/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+};
+
 export {
   apiClient,
   authService,
@@ -353,5 +378,6 @@ export {
   adminService,
   testCSVDownload,
   departmentService,
-  universityService
+  universityService,
+  promotionalVideoService
 }; 

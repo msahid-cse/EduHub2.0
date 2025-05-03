@@ -33,7 +33,9 @@ import JobApplications from "./pages/JobApplications";
 import UserApplications from "./pages/UserApplications";
 import ViewAllApplications from "./pages/ViewAllApplications";
 import TestConnection from "./TestConnection";
-import DevelopersPage from './pages/DevelopersPage';
+import Developers from './pages/Developers';
+import PromotionalVideoManager from './pages/PromotionalVideoManager';
+import PartnerManagement from './pages/PartnerManagement';
 
 
 // import Navbar from "./components/Navbar";
@@ -45,7 +47,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
-        <Route path="/developers" element={<DevelopersPage />} />
+        <Route path="/developers" element={<Developers />} />
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -186,6 +188,21 @@ function App() {
         <Route path="/events/:id/send-invitations" element={
           <ProtectedRoute requiredRole="admin">
             <SendEventInvitations />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/promotional-video" element={
+          <ProtectedRoute requiredRole="admin">
+            <PromotionalVideoManager />
+          </ProtectedRoute>
+        } />
+        <Route path="/promotional-video-manager" element={
+          <ProtectedRoute requiredRole="admin">
+            <PromotionalVideoManager />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/partners" element={
+          <ProtectedRoute requiredRole="admin">
+            <PartnerManagement />
           </ProtectedRoute>
         } />
       </Routes>

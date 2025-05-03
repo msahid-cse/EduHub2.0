@@ -1,0 +1,38 @@
+nohup: ignoring input
+Server environment: development
+Auth bypass: Enabled
+Upload directory path: D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\uploads
+Logo directory path: D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\uploads\logos
+Serving static files from: D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\uploads
+Attempting to connect to MongoDB at: mongodb://localhost:27017/eduhub
+[MockDB] Seeded database with sample data
+Using mock Partner model due to MongoDB connection issues: MongoDB not connected
+Partner model loaded in routes
+node:internal/modules/cjs/loader:1404
+  throw err;
+  ^
+
+Error: Cannot find module 'jsonwebtoken'
+Require stack:
+- D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\middleware\auth.js
+- D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\routes\partnerRoutes.js
+- D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\server.js
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+    at Function._load (node:internal/modules/cjs/loader:1211:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.require (node:internal/modules/cjs/loader:1487:12)
+    at require (node:internal/modules/helpers:135:16)
+    at Object.<anonymous> (D:\University\Spring-2025\IDP-2\Project\EduHub2.0\server\middleware\auth.js:1:13)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'D:\\University\\Spring-2025\\IDP-2\\Project\\EduHub2.0\\server\\middleware\\auth.js',
+    'D:\\University\\Spring-2025\\IDP-2\\Project\\EduHub2.0\\server\\routes\\partnerRoutes.js',
+    'D:\\University\\Spring-2025\\IDP-2\\Project\\EduHub2.0\\server\\server.js'
+  ]
+}
+
+Node.js v22.15.0
