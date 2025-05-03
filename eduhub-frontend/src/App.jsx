@@ -33,6 +33,9 @@ import JobApplications from "./pages/JobApplications";
 import UserApplications from "./pages/UserApplications";
 import ViewAllApplications from "./pages/ViewAllApplications";
 import TestConnection from "./TestConnection";
+import DevelopersPage from './pages/DevelopersPage';
+
+
 // import Navbar from "./components/Navbar";
 
 function App() {
@@ -42,6 +45,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
+        <Route path="/developers" element={<DevelopersPage />} />
         {/* <Route path="/dashboard" element={<Dashboard />} /> */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
