@@ -140,8 +140,4 @@ This project is being developed as part of an Independent Design Project (IDP) c
 - `GET /api/jobs/type/:type` - Get jobs by type
 
 
-
-## License
-
-This project is licensed under the MIT License.
  
