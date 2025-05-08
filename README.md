@@ -139,9 +139,7 @@ This project is being developed as part of an Independent Design Project (IDP) c
 - `POST /api/jobs/:id/apply` - Apply for a job
 - `GET /api/jobs/type/:type` - Get jobs by type
 
-## Contributors
 
-- Your Name
 
 ## License
 
