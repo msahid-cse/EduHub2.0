@@ -1,6 +1,6 @@
-# EduHub 2.0
+# Path2Pro
 
-EduHub 2.0 is a comprehensive educational platform designed to provide students with tools for learning, skill development, and career advancement.
+Path2Pro is a comprehensive educational platform designed to provide students with tools for learning, skill development, and career advancement.
 
 ## Recent Updates
 
